@@ -14,7 +14,7 @@ jobs:
     - uses: msys2/setup-msys2@v2
       with:
         update: true
-        location: C:\ # C:\msys64
+        # location: C:\ # C:\msys64
         release: false
         install: >-
             mingw-w64-x86_64-autotools

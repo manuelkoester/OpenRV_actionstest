@@ -15,6 +15,7 @@ jobs:
       with:
         update: true
         location: C:\ # C:\msys64
+        release: false
         install: >-
             mingw-w64-x86_64-autotools
             mingw-w64-x86_64-cmake

@@ -89,6 +89,8 @@ jobs:
       run: |
         export PATH=/c/msys64/mingw64/bin:$PATH
         export ACLOCAL_PATH=/c/msys64/usr/share/aclocal/
+        export QT_HOME=/c/Qt/5.12.2/win64_msvc2019_64
+        export WIN_PERL=/c/Strawberry/perl/bin
 
     # - name: Set up environment
     #   run: |
@@ -97,22 +99,28 @@ jobs:
  
     - name: Install Python dependencies
       run: |
-        # pip install -r requirements.txt
         SETUPTOOLS_USE_DISTUTILS=stdlib python3 -m pip install --user --upgrade -r requirements.txt
         
+    # - name: Build
+    #   run: |
+    #     mkdir build
+    #     cd build
+    #     # cmake .. -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DRV_DEPS_QT5_LOCATION=C:/Qt/5.15.2/mingw81_64
+    #     cmake .. -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DRV_DEPS_WIN_PERL_ROOT=/c/Strawberry/perl/bin -DRV_DEPS_QT5_LOCATION=/c/Qt/5.12.2/win64_msvc2019_64
+    #     cmake --build . --config Release
+    
+    # See here: https://github.com/AcademySoftwareFoundation/OpenRV/issues/240#issuecomment-1686658461
     - name: Build
       run: |
-        mkdir build
-        cd build
-        # cmake .. -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DRV_DEPS_QT5_LOCATION=C:/Qt/5.15.2/mingw81_64
-        cmake .. -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DRV_DEPS_WIN_PERL_ROOT=/c/Strawberry/perl/bin -DRV_DEPS_QT5_LOCATION=/c/Qt/5.12.2/win64_msvc2019_64
-        cmake --build . --config Release
-
+        source rvcmds.sh
+        rvclean
+        rvcfg
+        rvbuild
 
     - name: Cache build artifacts
       uses: actions/cache@v2
       with:
-        path: build
+        path: _build
         key: ${{ runner.os }}-build-${{ github.sha }}
         restore-keys: |
           ${{ runner.os }}-build-
@@ -142,6 +150,6 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         name: OPENRV
-        files: ./build/bin/OpenRV.exe
+        files: ./_build/bin/OpenRV.exe
         fail_on_unmatched_files: true
         draft: true

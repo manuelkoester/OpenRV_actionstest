@@ -1,50 +1,162 @@
 # Building Open RV on macOS
 
+(summary)=
 ## Summary
 
-1. [Install XCode](#install-xcode)
-1. [Install Homebrew](#install-homebrew)
-1. [Install tools and build dependencies](#install-tools-and-build-dependencies)
-1. [Install the python requirements](#install-the-python-requirements)
-1. [Install Qt](#install-qt)
+- [Summary](summary)
+- [Allow Terminal to update or delete other applications](allow_terminal)
+- [Install Xcode](install_xcode)
+- [Install CMake](install_cmake)
+- [Install Homebrew](install_homebrew)
+- [Install tools and build dependencies](install_tools_and_build_dependencies)
+- [Install Qt](install_qt)
+- [Build Open RV](build_openrv)
 
-## Install XCode
+````{note}
+OpenRV can be built for *x86_64* by changing the architecture of the terminal to *x86_64* using the following command:
+```bash
+arch -x86_64 $SHELL
+```
+**It is important to use that *x86_64* terminal for all the subsequent steps.**
+````
 
-From the App Store, download XCode 14.3.1. Make sure that it's the source of the active developer directory.
-Note that using an XCode version more recent than 14.3.1 will result in an FFmpeg build break.
+(allow_terminal)=
+## Allow Terminal to update or delete other applications
 
-`xcode-select -p` should return `/Applications/Xcode.app/Contents/Developer`. If it's not the case, run `sudo xcode-select -s /Applications/Xcode.app`
+From macOS System Settings > Privacy & Security > App Management, allow Terminal to update or delete other applications.
 
+(install_xcode)=
+## Install Xcode
+
+From the App Store, download Xcode. Make sure that it is the source of the active developer directory.
+
+`xcode-select -p` should return `/Applications/Xcode.app/Contents/Developer`. If that is not the case, run `sudo xcode-select -s /Applications/Xcode.app`
+
+(install_cmake)=
+## Install CMake
+
+Homebrew's CMake could previously be used to build Open RV on macOS, but now it installs CMake version 4, which is too recent and causes dependency issues. An earlier version of CMake must be installed separately:
+[cmake-3.31.7-macos-universal.dmg](https://github.com/Kitware/CMake/releases/download/v3.31.7/cmake-3.31.7-macos-universal.dmg).
+
+Add the CMake tool to the PATH using the following command:
+```bash
+sudo "/Applications/CMake.app/Contents/bin/cmake-gui" --install=/usr/local/bin
+````
+
+(install_homebrew)=
 ## Install Homebrew
 
-Homebrew is the one stop shop providing all the build requirements. You can install it following the instructions on the [Homebrew page](https://brew.sh).
+Homebrew is the one-stop shop providing all the build requirements. You can install it by following the instructions on the [Homebrew page](https://brew.sh).
 
-Make sure Homebrew's binary directory is in your PATH and that `brew` is resolved from your terminal.
+Make sure Homebrew's binary directory is in your PATH and that `brew` can be resolved from your terminal.
 
+(install_tools_and_build_dependencies)=
 ## Install tools and build dependencies
 
 Most of the build requirements can be installed by running the following brew install command:
 
 ```bash
-brew install cmake ninja readline sqlite3 xz zlib tcl-tk autoconf automake libtool python yasm clang-format black meson nasm pkg-config glew
+brew install ninja readline sqlite3 xz zlib tcl-tk@8 autoconf automake libtool python@3.11 yasm clang-format black meson nasm pkg-config glew
 ```
 
-Make sure `python` resolves in your terminal. In some case, depending on how the python formula is built, there's no `python` symbolic link.
-In that case, you can create one with this command `ln -s python3 $(dirname $(which python3))/python`.
+Make sure `xcode-select -p` still returns `/Applications/Xcode.app/Contents/Developer`. If that is not the case, run `sudo xcode-select -s /Applications/Xcode.app`
 
-## Install the python requirements
-
-Some of the RV build scripts requires extra python packages. They can be installed using the requirements.txt at the root of the repository.
-
-```bash
-python3 -m pip install -r requirements.txt 
-```
-
+(install_qt)=
 ## Install Qt
 
-Download the last version of Qt 5.15.x that you can get using the online installer on the [Qt page](https://www.qt.io/download-open-source). Logs, Android, iOS and WebAssembly are not required to build OpenRV.
+Download the last version of Qt 6.5.x using the online installer on the [Qt page](https://www.qt.io/download-open-source). Qt logs, Android, iOS, and WebAssembly are not required to build OpenRV.
 
 
-WARNING: If you fetch Qt from another source, make sure to build it with SSL support, that it contains everything required to build PySide2, and that the file structure is similar to the official package.
+WARNING: If you fetch Qt from another source, make sure it is built with SSL support, contains everything required to build PySide6, and that the file structure is similar to the official package.
 
-Note: Qt5 from homebrew is known to not work well with OpenRV.
+Note: Qt6 from homebrew is known to not work well with OpenRV.
+Note: The CI build agents are currently using Qt 6.5.3
+
+(build_openrv)=
+## Build Open RV
+
+(build_openrv1)=
+### Before executing any commands
+
+To maximize your chances of successfully building Open RV, you must:
+- Fully update your code base to the latest version (or the version you want to use) with a command like `git pull`.
+- Fix all conflicts due to updating the code.
+- Revisit all modified files to ensure they aren't using old code that changed during the update such as when the Visual Studio version changes.
+
+(build_openrv2)=
+### Get Open RV source code
+
+Clone the Open RV repository and change directory into the newly created folder. Typically, the command would be:
+
+Using a password-protected SSH key:
+```shell
+git clone --recursive git@github.com:AcademySoftwareFoundation/OpenRV.git
+cd OpenRV
+```
+
+Using the web URL:
+```shell
+git clone --recursive https://github.com/AcademySoftwareFoundation/OpenRV.git
+cd OpenRV
+```
+
+(build_openrv3)=
+### Load aliases for Open RV
+
+From the Open RV directory:
+```shell
+source rvcmds.sh
+```
+
+(build_openrv4)=
+### Install Python dependencies
+
+````{note}
+This section needs to be done only once when a fresh Open RV repository is cloned. 
+The first time `rvsetup` is executed, it will create a Python virtual environment in the current directory under `.venv`.
+````
+
+From the Open RV directory, the following command will download and install the Python dependencies.
+```shell
+rvsetup
+```
+
+(build_openrv5)=
+### Configure the project
+
+From the Open RV directory, the following command will configure CMake for the build:
+
+````{tabs}
+```{code-tab} bash Release
+rvcfg
+```
+```{code-tab} bash Debug
+rvcfgd
+```
+````
+
+(build_openrv6)=
+### Build Open RV
+
+From the Open RV directory, the following command will build the main executable:
+
+````{tabs}
+```{code-tab} bash Release
+rvbuild
+```
+```{code-tab} bash Debug
+rvbuildd
+```
+````
+
+(build_openrv7)=
+### Opening Open RV executable
+
+````{tabs}
+```{tab} Release
+Once the build is completed, the Open RV application can be found in the Open RV directory under `_build/stage/app/RV.app/Contents/MacOS/RV`.
+```
+```{tab} Debug
+Once the build is completed, the Open RV application can be found in the Open RV directory under `_build_debug/stage/app/RV.app/Contents/MacOS/RV`.
+```
+````

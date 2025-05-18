@@ -130,8 +130,6 @@ ENDIF()
 
 LIST(APPEND _configure_options "-DLibRaw_ROOT=${RV_DEPS_RAW_ROOT_DIR}")
 
-LIST(APPEND _configure_options "-DQt5_ROOT=${RV_DEPS_QT5_LOCATION}")
-
 IF(NOT RV_TARGET_LINUX)
   LIST(APPEND _configure_options "-DWebP_ROOT=${RV_DEPS_WEBP_ROOT_DIR}")
   # Linux has a Link error related to relocation; WebP appears not built with -fPIC. Hence OIIO will build WebP itself.
@@ -160,7 +158,7 @@ IF(NOT RV_TARGET_WINDOWS)
             jpeg-turbo::jpeg
             Tiff::Tiff
             OpenEXR::OpenEXR
-            RV_DEPS_OPENJPEG
+            OpenJpeg::OpenJpeg
             jpeg-turbo::turbojpeg
             PNG::PNG
             Boost::headers
@@ -175,8 +173,8 @@ IF(NOT RV_TARGET_WINDOWS)
             ffmpeg::swresample
             ZLIB::ZLIB
     CONFIGURE_COMMAND ${CMAKE_COMMAND} ${_configure_options}
-    BUILD_COMMAND ${_make_command} -j${_cpu_count}
-    INSTALL_COMMAND ${_make_command} install
+    BUILD_COMMAND ${_cmake_build_command}
+    INSTALL_COMMAND ${_cmake_install_command}
     BUILD_IN_SOURCE FALSE
     BUILD_ALWAYS FALSE
     BUILD_BYPRODUCTS ${_byproducts}

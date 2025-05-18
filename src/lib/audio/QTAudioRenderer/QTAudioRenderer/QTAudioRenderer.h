@@ -1,9 +1,9 @@
 //******************************************************************************
 //  Copyright (c) 2013, 2014 Tweak Software.
 //  All rights reserved.
-//  
+//
 //  SPDX-License-Identifier: Apache-2.0
-//  
+//
 //******************************************************************************
 #ifndef __audio__QTAudioRenderer__h__
 #define __audio__QTAudioRenderer__h__
@@ -15,259 +15,256 @@
 #include <TwkUtil/Clock.h>
 
 #include <QtCore/QIODevice>
-#include <QtMultimedia/QAudioOutput>
+
 #include <QtMultimedia/QAudioFormat>
-#include <QtMultimedia/QAudioDeviceInfo>
+#include <QtMultimedia/QAudioDevice>
+#include <QtMultimedia/QAudioSink>
+#include <QtMultimedia/QMediaDevices>
+
 #include <QtCore/QThread>
 #include <QtCore/QMutex>
 
 #include <iostream>
 
-namespace IPCore {
-
-class QTAudioThread;
-class QTAudioRenderer;
-
-
-class QTAudioIODevice : public QIODevice
+namespace IPCore
 {
-    Q_OBJECT
 
-  public:
-    QTAudioIODevice(QTAudioThread &audioThread);
-    virtual ~QTAudioIODevice();
+    using SampleFormat = QAudioFormat::SampleFormat;
 
-    virtual qint64 readData(char* data, qint64 maxlen);
-    virtual qint64 writeData(const char* data, qint64 len);
-    qint64 bytesAvailable() const;
+    class QTAudioThread;
+    class QTAudioRenderer;
 
-    void start();
+    class QTAudioIODevice : public QIODevice
+    {
+        Q_OBJECT
 
-  public slots:
-    void resetDevice();
-    void stopDevice();
-    
-  private:
-    QTAudioThread &m_thread;
-};
+    public:
+        QTAudioIODevice(QTAudioThread& audioThread);
+        virtual ~QTAudioIODevice();
 
+        virtual qint64 readData(char* data, qint64 maxlen);
+        virtual qint64 writeData(const char* data, qint64 len);
+        qint64 bytesAvailable() const;
 
-class QTAudioOutput : public QAudioOutput
-{
-    Q_OBJECT
+        void start();
 
-  public:
-    QTAudioOutput(QAudioDeviceInfo &audioDeviceInfo,
-                  QAudioFormat &audioFormat,
-                  QTAudioIODevice &ioDevice,
-                  QTAudioThread &audioThread);
-    ~QTAudioOutput();
+    public slots:
+        void resetDevice();
+        void stopDevice();
 
+    private:
+        QTAudioThread& m_thread;
+    };
 
-  public slots:
-    void startAudio();
-    void resetAudio();
-    void stopAudio();
-    void suspendAudio();
-    void suspendAndResetAudio();
-    void setAudioOutputBufferSize();
-    void play(IPCore::Session *s);
+    class QTAudioOutput : public QAudioSink
+    {
+        Q_OBJECT
 
-  private:
-    int  calcAudioBufferSize(const int channels,
-                             const int sampleRate,
-                             const int sampleSizeInBytes,
-                             const int defaultBufferSize) const;
-    std::string toString(QAudio::State state);
+    public:
+        QTAudioOutput(QAudioDevice& audioDevice, QAudioFormat& audioFormat,
+                      QTAudioIODevice& ioDevice, QTAudioThread& audioThread);
+        ~QTAudioOutput();
 
-  private:
-    QAudioDeviceInfo  &m_device;
-    QAudioFormat      &m_format;
-    QTAudioIODevice   &m_ioDevice;
-    QTAudioThread     &m_thread;
-};
+    public slots:
+        void startAudio();
+        void resetAudio();
+        void stopAudio();
+        void suspendAudio();
+        void suspendAndResetAudio();
+        void setAudioOutputBufferSize();
+        void play(IPCore::Session* s);
 
+    private:
+        int calcAudioBufferSize(const int channels, const int sampleRate,
+                                const int sampleSizeInBytes,
+                                const int defaultBufferSize) const;
+        std::string toString(QAudio::State state);
 
-class QTAudioThread : public QThread
-{
-    Q_OBJECT
+    private:
+        QAudioDevice& m_device;
+        QAudioFormat& m_format;
+        QTAudioIODevice& m_ioDevice;
+        QTAudioThread& m_thread;
+    };
 
-  public:
-    QTAudioThread(QTAudioRenderer &audioRenderer,
-                  QObject* parent = 0);
-    ~QTAudioThread();
+    class QTAudioThread : public QThread
+    {
+        Q_OBJECT
 
-    void startMe();
+    public:
+        QTAudioThread(QTAudioRenderer& audioRenderer, QObject* parent = 0);
+        ~QTAudioThread();
 
-    size_t processedSamples() const;
-    void setProcessedSamples(size_t n);
+        void startMe();
 
-    size_t startSample() const;
-    void setStartSample(size_t value);
+        size_t processedSamples() const;
+        void setProcessedSamples(size_t n);
 
-    TwkAudio::Time actualPlayedTimeOffset() const;
-    void setActualPlayedTimeOffset(TwkAudio::Time t);
+        size_t startSample() const;
+        void setStartSample(size_t value);
 
-    void setDeviceLatency(double t);
+        TwkAudio::Time actualPlayedTimeOffset() const;
+        void setActualPlayedTimeOffset(TwkAudio::Time t);
 
-    bool preRollDisable() const;
-    void setPreRollDisable(bool disable);
+        void setDeviceLatency(double t);
 
-    void setPreRollDelay(TwkAudio::Time t);
+        bool preRollDisable() const;
+        void setPreRollDisable(bool disable);
 
-    int  bytesPerSample() const;
-    size_t framesPerBuffer() const;
+        void setPreRollDelay(TwkAudio::Time t);
 
-    bool holdOpen() const;
+        int bytesPerSample() const;
+        size_t framesPerBuffer() const;
 
-    const AudioRenderer::DeviceState& deviceState() const;
-    void setDeviceState(AudioRenderer::DeviceState &state);
+        bool holdOpen() const;
 
-    void emitStartAudio();
-    void emitResetAudio();
-    void emitStopAudio();
-    void emitSuspendAudio();
-    void emitSuspendAndResetAudio();
+        const AudioRenderer::DeviceState& deviceState() const;
+        void setDeviceState(AudioRenderer::DeviceState& state);
 
-    void emitResetDevice();
-    void emitStopDevice();
+        void emitStartAudio();
+        void emitResetAudio();
+        void emitStopAudio();
+        void emitSuspendAudio();
+        void emitSuspendAndResetAudio();
 
-    void emitPlay(IPCore::Session* s);
+        void emitResetDevice();
+        void emitStopDevice();
 
-    //
-    //  callback for QTAudioIODevice's readData() to call
-    //
-    qint64 qIODeviceCallback(char* data, qint64 maxLenInBytes);
+        void emitPlay(IPCore::Session* s);
 
-    void startOfInitialization();
-    TwkUtil::SystemClock::Time endOfInitialization();
-    bool isInInitialization()const;
+        //
+        //  callback for QTAudioIODevice's readData() to call
+        //
+        qint64 qIODeviceCallback(char* data, qint64 maxLenInBytes);
 
-    TwkUtil::SystemClock::Time getLastDeviceLatency() const { return m_lastDeviceLatency; }
+        void startOfInitialization();
+        TwkUtil::SystemClock::Time endOfInitialization();
+        bool isInInitialization() const;
 
+        TwkUtil::SystemClock::Time getLastDeviceLatency() const
+        {
+            return m_lastDeviceLatency;
+        }
 
-  protected:
-    virtual void run();
+        QTAudioOutput* audioOutput() const { return m_audioOutput; }
 
-  private:
+    protected:
+        virtual void run();
 
-    bool createAudioOutput();
+    private:
+        bool createAudioOutput();
 
-    void detachAudioOutputDevice();
+        void detachAudioOutputDevice();
 
-  private:
-    QMutex                  m_mutex;
-    
-    QObject*                m_parent;
+    private:
+        QMutex m_mutex;
 
-    QTAudioIODevice*        m_ioDevice;
-    QTAudioOutput*          m_audioOutput;
-    TwkAudio::AudioBuffer   m_abuffer;
-    QTAudioRenderer         &m_audioRenderer;
+        QObject* m_parent;
 
-    int                     m_bytesPerSample;
-    size_t                  m_preRollSamples;
-    size_t                  m_processedSamples;
-    size_t                  m_startSample;
-    int                     m_preRollMode;
-    bool                    m_preRollDisable;
+        QTAudioIODevice* m_ioDevice;
+        QTAudioOutput* m_audioOutput;
+        TwkAudio::AudioBuffer m_abuffer;
+        QTAudioRenderer& m_audioRenderer;
 
-    bool                        m_patch9355Enabled;
-    TwkUtil::SystemClock        m_systemClock;
-    TwkUtil::SystemClock::Time  m_startOfInitialization;
-    TwkUtil::SystemClock::Time  m_endOfInitialization;
-    TwkUtil::SystemClock::Time  m_lastDeviceLatency;
-};
+        int m_bytesPerSample;
+        size_t m_preRollSamples;
+        size_t m_processedSamples;
+        size_t m_startSample;
+        int m_preRollMode;
+        bool m_preRollDisable;
 
+        bool m_patch9355Enabled;
+        TwkUtil::SystemClock m_systemClock;
+        TwkUtil::SystemClock::Time m_startOfInitialization;
+        TwkUtil::SystemClock::Time m_endOfInitialization;
+        TwkUtil::SystemClock::Time m_lastDeviceLatency;
+    };
 
-class QTAudioRenderer : public IPCore::AudioRenderer
-{
-  public:
-    typedef TwkAudio::AudioBuffer AudioBuffer;
+    class QTAudioRenderer : public IPCore::AudioRenderer
+    {
+    public:
+        typedef TwkAudio::AudioBuffer AudioBuffer;
 
-    QTAudioRenderer(const RendererParameters&, QObject* parent);
-    virtual ~QTAudioRenderer();
+        QTAudioRenderer(const RendererParameters&, QObject* parent);
+        virtual ~QTAudioRenderer();
 
-    //
-    //  AudioRenderer API
-    //
+        //
+        //  AudioRenderer API
+        //
 
-    virtual void availableLayouts(const Device&, LayoutsVector&);
-    virtual void availableFormats(const Device&, FormatVector&);
-    virtual void availableRates(const Device&, Format, RateVector&);
+        virtual void availableLayouts(const Device&, LayoutsVector&);
+        virtual void availableFormats(const Device&, FormatVector&);
+        virtual void availableRates(const Device&, Format, RateVector&);
 
-    //
-    //  play() will return almost immediately -- a worker thread will
-    //  be released and start playing.
-    //
+        //
+        //  play() will return almost immediately -- a worker thread will
+        //  be released and start playing.
+        //
 
-    virtual void play();
-    virtual void play(IPCore::Session*);
+        virtual void play();
+        virtual void play(IPCore::Session*);
 
-    //
-    //  stop() will cause the worker thread to wait until play.
-    //
+        //
+        //  stop() will cause the worker thread to wait until play.
+        //
 
-    virtual void stop();
-    virtual void stop(IPCore::Session*);
+        virtual void stop();
+        virtual void stop(IPCore::Session*);
 
-    //
-    //  shutdown() close all hardware devices
-    //
+        //
+        //  shutdown() close all hardware devices
+        //
 
-    virtual void shutdown();
+        virtual void shutdown();
 
-    //
-    // T is the Application type that is adding this
-    // renderer as an audio module e.g. 'RvApplication'
-    // or 'NoodleApplication'.
-    template<class T>
-    static IPCore::AudioRenderer::Module addQTAudioModule();
+        //
+        // T is the Application type that is adding this
+        // renderer as an audio module e.g. 'RvApplication'
+        // or 'NoodleApplication'.
+        template <class T>
+        static IPCore::AudioRenderer::Module addQTAudioModule();
 
-    TwkAudio::Format getTwkAudioFormat() const;
-    TwkAudio::Format convertToTwkAudioFormat(int fmtSize,
-                                             QAudioFormat::SampleType fmtType) const;
+        TwkAudio::Format getTwkAudioFormat() const;
+        TwkAudio::Format convertToTwkAudioFormat(SampleFormat fmtType) const;
 
-    void setSampleSizeAndType(Layout twkLayout,
-                              Format twkFormat,
-                              QAudioFormat &qformat) const;
+        QAudioFormat::SampleFormat
+        convertToQtAudioFormat(TwkAudio::Format fmtType) const;
 
-    friend class QTAudioThread;
+        void setSampleSizeAndType(Layout twkLayout, Format twkFormat,
+                                  QAudioFormat& qformat) const;
 
-  private:
+        friend class QTAudioThread;
 
-    bool supportsRequiredChannels(const QAudioDeviceInfo &info) const;
+    private:
+        bool supportsRequiredChannels(const QAudioDevice& info) const;
 
-    void init();
+        void init();
 
-    void initDeviceList();
+        void initDeviceList();
 
-  private:
-    QObject*          m_parent;
-    QTAudioThread*    m_thread;
-    QAudioFormat      m_format;
-    QAudioDeviceInfo  m_device;
-    QList<QAudioDeviceInfo> m_deviceList;
-    std::string       m_codec;
-};
+    private:
+        QObject* m_parent;
+        QTAudioThread* m_thread;
+        QAudioFormat m_format;
+        QAudioDevice m_device;
+        QList<QAudioDevice> m_deviceList;
+        std::string m_codec;
+    };
 
+    template <class T>
+    static IPCore::AudioRenderer*
+    createQTAudio(const IPCore::AudioRenderer::RendererParameters& p)
+    {
+        return (new QTAudioRenderer(p, static_cast<T*>(IPCore::App())));
+    }
 
+    template <class T>
+    IPCore::AudioRenderer::Module QTAudioRenderer::addQTAudioModule()
+    {
+        return IPCore::AudioRenderer::Module("Platform Audio", "",
+                                             createQTAudio<T>);
+    }
 
-
-template<class T>
-static IPCore::AudioRenderer*
-createQTAudio(const IPCore::AudioRenderer::RendererParameters &p)
-{
-    return (new QTAudioRenderer(p, static_cast<T*>(IPCore::App())));
-}
-
-template<class T>
-IPCore::AudioRenderer::Module
-QTAudioRenderer::addQTAudioModule()
-{
-    return IPCore::AudioRenderer::Module("Platform Audio", "", createQTAudio<T>);
-}
-
-} // IPCore
+} // namespace IPCore
 
 #endif // __audio__QTAudioRenderer__h__

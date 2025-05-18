@@ -1,8 +1,8 @@
 //******************************************************************************
 // Copyright (c) 2008 Tweak Software. All rights reserved.
-// 
+//
 // SPDX-License-Identifier: Apache-2.0
-// 
+//
 //******************************************************************************
 #include <DarwinBundle/DarwinBundle.h>
 #include <IOproxy/IOproxy.h>
@@ -71,7 +71,7 @@ extern const char* rv_mac_aqua;
 
 // RV third party optional customization
 #if defined(RV_THIRD_PARTY_CUSTOMIZATION)
-    extern void rvThirdPartyCustomization(TwkApp::Bundle& bundle, char* licarg);
+extern void rvThirdPartyCustomization(TwkApp::Bundle& bundle, char* licarg);
 #endif
 
 //
@@ -81,9 +81,9 @@ extern const char* rv_mac_aqua;
 
 #if MAJOR_VERSION == 99
 #if NDEBUG
-//#error ********* NO VERSION INFORMATION ***********
+// #error ********* NO VERSION INFORMATION ***********
 #else
-#warning ********* NO VERSION INFORMATION ***********
+#warning********* NO VERSION INFORMATION ***********
 #endif
 #endif
 
@@ -100,26 +100,24 @@ static void control_c_handler(int sig)
     exit(1);
 }
 
-static int rtPeriod      = 240;
+static int rtPeriod = 240;
 static int rtComputation = 720;
-static int rtConstraint  = 360;
+static int rtConstraint = 360;
 static int rtPreemptable = 1;
 
-
-static int
-set_realtime(int period, int computation, int constraint)
+static int set_realtime(int period, int computation, int constraint)
 {
     struct thread_time_constraint_policy ttcpolicy;
 
-    ttcpolicy.period=period; // HZ/160
-    ttcpolicy.computation=computation; // HZ/3300;
-    ttcpolicy.constraint=constraint; // HZ/2200;
-    ttcpolicy.preemptible=1;
+    ttcpolicy.period = period;           // HZ/160
+    ttcpolicy.computation = computation; // HZ/3300;
+    ttcpolicy.constraint = constraint;   // HZ/2200;
+    ttcpolicy.preemptible = 1;
 
-    if (thread_policy_set(mach_thread_self(),
-                          THREAD_TIME_CONSTRAINT_POLICY,
+    if (thread_policy_set(mach_thread_self(), THREAD_TIME_CONSTRAINT_POLICY,
                           (thread_policy_t)&ttcpolicy,
-                          THREAD_TIME_CONSTRAINT_POLICY_COUNT) != KERN_SUCCESS)
+                          THREAD_TIME_CONSTRAINT_POLICY_COUNT)
+        != KERN_SUCCESS)
     {
         return 0;
     }
@@ -130,16 +128,21 @@ set_realtime(int period, int computation, int constraint)
 void thread_priority_init()
 {
     struct thread_time_constraint_policy ttcpolicy;
-    int ret, bus_speed, mib [2] = { CTL_HW, HW_BUS_FREQ };
+    int ret, bus_speed, mib[2] = {CTL_HW, HW_BUS_FREQ};
     size_t len;
 
     len = sizeof(bus_speed);
 
-    if (sysctl (mib, 2, &bus_speed, &len, NULL, 0) < 0)
+#if !defined(__aarch64__)
+    int ret2 = sysctl(mib, 2, &bus_speed, &len, NULL, 0);
+    if (ret2 < 0)
     {
-        cout << "ERROR: unable to get system bus frequency" << endl;
+        cout << "ERROR: unable to get system bus frequency: " << ret2 << endl;
         return;
     }
+#else
+    bus_speed = 100000000;
+#endif
 
     //
     //  The period is the number of cycles over which we are guaranteed
@@ -166,15 +169,13 @@ void thread_priority_init()
     //
     //
 
-    ttcpolicy.period      = bus_speed / rtPeriod;
+    ttcpolicy.period = bus_speed / rtPeriod;
     ttcpolicy.computation = bus_speed / rtComputation;
-    ttcpolicy.constraint  = bus_speed / rtConstraint;
+    ttcpolicy.constraint = bus_speed / rtConstraint;
     ttcpolicy.preemptible = rtPreemptable != 0;
 
-    if (thread_policy_set(mach_thread_self(),
-                          THREAD_TIME_CONSTRAINT_POLICY,
-                          (int *)&ttcpolicy,
-                          THREAD_TIME_CONSTRAINT_POLICY_COUNT)
+    if (thread_policy_set(mach_thread_self(), THREAD_TIME_CONSTRAINT_POLICY,
+                          (int*)&ttcpolicy, THREAD_TIME_CONSTRAINT_POLICY_COUNT)
         != KERN_SUCCESS)
     {
         cout << "INFO: running without real-time scheduling" << endl;
@@ -182,8 +183,7 @@ void thread_priority_init()
     else
     {
         cout << "INFO: real-time thread priorities set (bus="
-             << (bus_speed/1000) << "kHz)"
-             << endl;
+             << (bus_speed / 1000) << "kHz)" << endl;
     }
 }
 
@@ -195,6 +195,29 @@ string scarfFile(const string& fileName)
     return buffer.str();
 }
 
+static void setPlatformSpecificLocale()
+{
+    // on MacOS, we now use "UTF-8" as a replacement for the "C" locale.
+    // In principle it should make no difference  to use "C" or "UTF-8", and
+    // on macOS, "UTF-8" is a catch-all, region-agnostic UTF-8 locale
+    // (ex: "UTF-8" is an alias to "en_US.UTF-8" "en_GB.UTF-8" "*.UTF-8", etc)
+
+    // The QT code does this:
+    //   warnOnOverride = qstrcmp(setlocale(LC_CTYPE, nullptr), "C") != 0
+    //        || getenv("LC_ALL") || getenv("LC_CTYPE") || getenv("LANG");
+    //   newLocale = setlocale(LC_CTYPE, "UTF-8");
+    //
+    // therefore, to remove the warning, we unset the env variables that
+    // would cause the warning, and we ourselves to the same as what Qt does
+    // which is to set the LC_CTYPE locale to UTF-8.
+
+    unsetenv("LC_ALL");
+    unsetenv("LC_CTYPE");
+    unsetenv("LANG");
+    setlocale(LC_ALL, "UTF-8");
+    setlocale(LC_CTYPE, "UTF-8"); // LC_ALL already has LC_CTYPE, but no harm.
+}
+
 //
 //  We happen to know that Mu objects NEVER get stashed in 3rd party
 //  static areas so let's just remove all of them.
@@ -202,17 +225,17 @@ string scarfFile(const string& fileName)
 
 static string qtver;
 
-static int gc_filter (const char* name, void* ptr, size_t size)
+static int gc_filter(const char* name, void* ptr, size_t size)
 {
     string s(name);
 
-    if (s.find("/Library/Frameworks/") != string::npos ||
-        s.find("/System/Library/Frameworks/") != string::npos ||
-        s.find("/usr/lib/") != string::npos ||
-        s.find("imageformats/libq") != string::npos ||
-        s.find(qtver) != string::npos)
+    if (s.find("/Library/Frameworks/") != string::npos
+        || s.find("/System/Library/Frameworks/") != string::npos
+        || s.find("/usr/lib/") != string::npos
+        || s.find("imageformats/libq") != string::npos
+        || s.find(qtver) != string::npos)
     {
-        //cout << "SKIPPING: " << name << endl;
+        // cout << "SKIPPING: " << name << endl;
         return 0;
     }
     else
@@ -221,18 +244,43 @@ static int gc_filter (const char* name, void* ptr, size_t size)
     }
 }
 
-int main(int argc, char *argv[])
+void noOpenGLWarnOnStartup(QtMsgType t, const QMessageLogContext& context,
+                           const QString& qmsg)
+{
+    // This warning appears because RV requires OpenGL 2.1
+    // in macOS because it needs legacy functions like glBegin/glEnd
+    // Usually this is done with a higher OpenGL context version,
+    // but with compatibility profile, but on macOS there
+    // is no compatibility profile.
+    // In any case, silence this message since it's harmless for us, since
+    // we don't do any rendering in the web view.
+    // Also note the Qt typo "surfcace" (present in at least Qt 6.5.3)
+
+    const QString silenced =
+        "An OpenGL surfcace format was requested that is either not "
+        "version 3.2 or higher or a not Core Profile.\nChromium on "
+        "macOS will fall back to software rendering in this case.\n"
+        "Hardware acceleration and features such as WebGL will not be "
+        "available.";
+
+    if (silenced != qmsg)
+        std::cout << qmsg.toUtf8().constData() << std::endl;
+}
+
+int main(int argc, char* argv[])
 {
     if (!getenv("HOME"))
     {
-        cerr << "ERROR: $HOME is not set in the environment and is required." << endl;
+        cerr << "ERROR: $HOME is not set in the environment and is required."
+             << endl;
         exit(-1);
     }
 
     //
-    //  As of OSX 10.7, interesting settings of the locale can cause crashes in apple core code.
+    //  As of OSX 10.7, interesting settings of the locale can cause crashes in
+    //  apple core code.
     //
-    if(getenv("LANG"))
+    if (getenv("LANG"))
     {
         std::string originalLocale = getenv("LANG");
         setenv("ORIGINALLOCAL", originalLocale.c_str(), 1);
@@ -241,20 +289,28 @@ int main(int argc, char *argv[])
     {
         setenv("ORIGINALLOCAL", "en", 1);
     }
-    setenv ("LANG", "C", 1);
-    setenv ("LC_ALL", "C", 1);
+
+    setPlatformSpecificLocale();
 
     // Qt 5.12.1 specific
-    // Disable Qt Quick hardware rendering because QwebEngineView conflicts with QGLWidget
-    setenv( "QT_QUICK_BACKEND", "software", 0 /* changeFlag : Do not change the existing value */);
+    // Disable Qt Quick hardware rendering because QwebEngineView conflicts with
+    // QGLWidget
+    setenv("QT_QUICK_BACKEND", "software",
+           0 /* changeFlag : Do not change the existing value */);
 
     // Qt 5.12.1 specific
     // Prevent Mac from automatically scaling app pixel coordinates in OpenGL
-    setenv("QT_MAC_WANTS_BEST_RESOLUTION_OPENGL_SURFACE", "0", 0); /* changeFlag : Do not change the existing value */
+    setenv("QT_MAC_WANTS_BEST_RESOLUTION_OPENGL_SURFACE", "0",
+           0); /* changeFlag : Do not change the existing value */
 
-    // Prevent usage of native sibling widgets on Mac. This attribute can be removed
-    // if GLView is changed to inherit from QOpenGLWidget.
+    // Prevent usage of native sibling widgets on Mac. This attribute can be
+    // removed if GLView is changed to inherit from QOpenGLWidget.
     QApplication::setAttribute(Qt::AA_DontCreateNativeWidgetSiblings);
+
+    // Also use this attribute (this was also set for Windows and Linux 2 years
+    // ago) This is required for to use the Qt path for Desktop Presentation
+    // Device.
+    QApplication::setAttribute(Qt::AA_DontCheckOpenGLContextThreadAffinity);
 
     const bool noHighDPISupport = getenv("RV_QT_HDPI_SUPPORT") == nullptr;
     if (noHighDPISupport)
@@ -262,31 +318,34 @@ int main(int argc, char *argv[])
         unsetenv("QT_SCALE_FACTOR");
         unsetenv("QT_SCREEN_SCALE_FACTORS");
         unsetenv("QT_AUTO_SCREEN_SCALE_FACTOR");
-        unsetenv("QT_ENABLE_HIGHDPI_SCALING");
+        qputenv("QT_ENABLE_HIGHDPI_SCALING", "0");
         unsetenv("QT_SCALE_FACTOR_ROUNDING_POLICY");
         unsetenv("QT_DEVICE_PIXEL_RATIO");
     }
 
     const char* pythonPath = getenv("PYTHONPATH");
-    if (pythonPath) pythonPath = strdup(pythonPath);
+    if (pythonPath)
+        pythonPath = strdup(pythonPath);
 
-    #ifndef PLATFORM_WINDOWS
-        //
-        //  Check the per-process limit on open file descriptors and
-        //  reset the soft limit to the hard limit.
-        //
-        struct rlimit rlim;
-        getrlimit (RLIMIT_NOFILE, &rlim);
-        rlim_t target = rlim.rlim_max;
-        if (OPEN_MAX < rlim.rlim_max) target = OPEN_MAX;
-        rlim.rlim_cur = target;
-        setrlimit (RLIMIT_NOFILE, &rlim);
-        getrlimit (RLIMIT_NOFILE, &rlim);
-        if (rlim.rlim_cur < target)
-        {
-            cerr << "WARNING: unable to increase open file limit above " << rlim.rlim_cur << endl;
-        }
-    #endif
+#ifndef PLATFORM_WINDOWS
+    //
+    //  Check the per-process limit on open file descriptors and
+    //  reset the soft limit to the hard limit.
+    //
+    struct rlimit rlim;
+    getrlimit(RLIMIT_NOFILE, &rlim);
+    rlim_t target = rlim.rlim_max;
+    if (OPEN_MAX < rlim.rlim_max)
+        target = OPEN_MAX;
+    rlim.rlim_cur = target;
+    setrlimit(RLIMIT_NOFILE, &rlim);
+    getrlimit(RLIMIT_NOFILE, &rlim);
+    if (rlim.rlim_cur < target)
+    {
+        cerr << "WARNING: unable to increase open file limit above "
+             << rlim.rlim_cur << endl;
+    }
+#endif
 
     {
         string qt(QT_VERSION_STR);
@@ -301,13 +360,12 @@ int main(int argc, char *argv[])
     string altPrefsPath;
     for (size_t i = 0; i < argc; i++)
     {
-        if (i < argc-1 && !strcmp(argv[i], "-prefsPath")) altPrefsPath = argv[i+1];
+        if (i < argc - 1 && !strcmp(argv[i], "-prefsPath"))
+            altPrefsPath = argv[i + 1];
     }
-    Rv::RvApplication::initializeQSettings (altPrefsPath);
+    Rv::RvApplication::initializeQSettings(altPrefsPath);
 
-    TwkApp::DarwinBundle bundle("RV",
-                                MAJOR_VERSION,
-                                MINOR_VERSION,
+    TwkApp::DarwinBundle bundle("RV", MAJOR_VERSION, MINOR_VERSION,
                                 REVISION_NUMBER,
                                 true /*register rvlink protocol handler*/);
 
@@ -317,15 +375,16 @@ int main(int argc, char *argv[])
     //  Expand any rvlink urls in argv
     //
 
-    vector<char *> newArgv;
+    vector<char*> newArgv;
 
     for (int i = 0; i < argc; ++i)
     {
-        if (0 == strncmp ("rvlink://", argv[i], 9))
+        if (0 == strncmp("rvlink://", argv[i], 9))
         {
-            Rv::RvApplication::parseURL (argv[i], newArgv);
+            Rv::RvApplication::parseURL(argv[i], newArgv);
         }
-        else newArgv.push_back (argv[i]);
+        else
+            newArgv.push_back(argv[i]);
     }
     argv = &(newArgv[0]);
     argc = newArgv.size();
@@ -335,25 +394,28 @@ int main(int argc, char *argv[])
 
     for (size_t i = 0; i < argc; i++)
     {
-        if      (!strcmp(argv[i], "-noPrefs")) noPrefs = true;
-        else if (!strcmp(argv[i], "-resetPrefs")) resetPrefs = true;
+        if (!strcmp(argv[i], "-noPrefs"))
+            noPrefs = true;
+        else if (!strcmp(argv[i], "-resetPrefs"))
+            resetPrefs = true;
 
         else if (!strcmp(argv[i], "-bakeURL"))
         {
-            string url = Rv::RvApplication::bakeCommandLineURL (argc, argv);
+            string url = Rv::RvApplication::bakeCommandLineURL(argc, argv);
             cerr << "Baked URL: " << url << endl;
             exit(0);
         }
         else if (!strcmp(argv[i], "-encodeURL"))
         {
-            string url = Rv::RvApplication::encodeCommandLineURL (argc, argv);
+            string url = Rv::RvApplication::encodeCommandLineURL(argc, argv);
             cerr << "Encoded URL: " << url << endl;
             exit(0);
         }
         else if (!strcmp(argv[i], "-registerHandler"))
         {
             bundle.registerHandler();
-            cerr << "INFO: registering '" << argv[0] << "' as default rvlink protocol handler." << endl;
+            cerr << "INFO: registering '" << argv[0]
+                 << "' as default rvlink protocol handler." << endl;
             exit(0);
         }
     }
@@ -363,9 +425,12 @@ int main(int argc, char *argv[])
     //
 
     Rv::Options& opts = Rv::Options::sharedOptions();
-    if (resetPrefs) Rv::RvPreferences::resetPreferencesFile();
-    if (!noPrefs) Rv::RvPreferences::loadSettingsIntoOptions(opts);
-    else          Rv::PackageManager::setIgnorePrefs(true);
+    if (resetPrefs)
+        Rv::RvPreferences::resetPreferencesFile();
+    if (!noPrefs)
+        Rv::RvPreferences::loadSettingsIntoOptions(opts);
+    else
+        Rv::PackageManager::setIgnorePrefs(true);
     Rv::Options::manglePerSourceArgs(argv, argc);
     Rv::Options prefOpts = opts;
 
@@ -377,12 +442,11 @@ int main(int argc, char *argv[])
     //
 
     // Required by the Live Review RV plugin React component's scroll bars
-    std::vector<char*> arguments( argv, argv + argc );
+    std::vector<char*> arguments(argv, argv + argc);
     static char enableOverlayScrollbar[] = "--enable-features=OverlayScrollbar";
-    arguments.emplace_back( enableOverlayScrollbar );
-    argc = static_cast<int>( arguments.size() );
+    arguments.emplace_back(enableOverlayScrollbar);
+    argc = static_cast<int>(arguments.size());
     argv = &arguments[0];
-;
 
     //
     //  Initialze IMF library for multi-threading
@@ -392,16 +456,14 @@ int main(int argc, char *argv[])
     //  Call the deploy functions
     //
 
-    TWK_DEPLOY_APP_OBJECT dobj(MAJOR_VERSION,
-                               MINOR_VERSION,
-                               REVISION_NUMBER,
-                               argc, argv,
-                               RELEASE_DESCRIPTION,
+    TWK_DEPLOY_APP_OBJECT dobj(MAJOR_VERSION, MINOR_VERSION, REVISION_NUMBER,
+                               argc, argv, RELEASE_DESCRIPTION,
                                "HEAD=" GIT_HEAD);
 
     Imf::staticInitialize();
-    TwkFB::GenericIO::init(); // Initialize TwkFB::GenericIO plugins statics
-    TwkMovie::GenericIO::init(); // Initialize TwkMovie::GenericIO plugins statics
+    TwkFB::GenericIO::init();    // Initialize TwkFB::GenericIO plugins statics
+    TwkMovie::GenericIO::init(); // Initialize TwkMovie::GenericIO plugins
+                                 // statics
 
     //
     // We handle the '--help' flag by changing it to '-help' for
@@ -422,28 +484,32 @@ int main(int argc, char *argv[])
 
     IPCore::Application::cacheEnvVars();
 
-    int   strictlicense  = 0;
-    int   registerHandler = 0;
-    char *prefsPath;
-    int   sleepTime = 0;
+    int strictlicense = 0;
+    int registerHandler = 0;
+    char* prefsPath;
+    int sleepTime = 0;
 
-    if (arg_parse
-        (nargv.size(), &nargv.front(),
-         "", "",
-         RV_ARG_EXAMPLES,
-         "", "",
-         RV_ARG_SEQUENCE_HELP,
-         "", "",
-         RV_ARG_SOURCE_OPTIONS(opts),
-         "", "",
-         "", ARG_SUBR(Rv::RvApplication::parseInFiles), "Input sequence patterns, images, movies, or directories ",
-         RV_ARG_PARSE_OPTIONS(opts),
-         "-strictlicense", ARG_FLAG(&strictlicense), "Exit rather than consume an RV license if no rvsolo licenses are available",
-         "-prefsPath %S", &prefsPath, "Alternate path to preferences directory",
-         "-registerHandler", ARG_FLAG(&registerHandler), "Register this executable as the default rvlink protocol handler (OS X only)",
-         "-rt %d %d %d %d", &rtPeriod, &rtComputation, &rtConstraint, &rtPreemptable, "Real time parameters (default=%d %d %d %d)", rtPeriod, rtComputation, rtConstraint, rtPreemptable,
-         "-sleep %d", &sleepTime, "Sleep (in seconds) before starting to allow attaching debugger",
-         NULL) < 0)
+    if (arg_parse(
+            nargv.size(), &nargv.front(), "", "", RV_ARG_EXAMPLES, "", "",
+            RV_ARG_SEQUENCE_HELP, "", "", RV_ARG_SOURCE_OPTIONS(opts), "", "",
+            "", ARG_SUBR(Rv::RvApplication::parseInFiles),
+            "Input sequence patterns, images, movies, or directories ",
+            RV_ARG_PARSE_OPTIONS(opts), "-strictlicense",
+            ARG_FLAG(&strictlicense),
+            "Exit rather than consume an RV license if no rvsolo licenses are "
+            "available",
+            "-prefsPath %S", &prefsPath,
+            "Alternate path to preferences directory", "-registerHandler",
+            ARG_FLAG(&registerHandler),
+            "Register this executable as the default rvlink protocol handler "
+            "(OS X only)",
+            "-rt %d %d %d %d", &rtPeriod, &rtComputation, &rtConstraint,
+            &rtPreemptable, "Real time parameters (default=%d %d %d %d)",
+            rtPeriod, rtComputation, rtConstraint, rtPreemptable, "-sleep %d",
+            &sleepTime,
+            "Sleep (in seconds) before starting to allow attaching debugger",
+            NULL)
+        < 0)
     {
         exit(-1);
     }
@@ -451,13 +517,14 @@ int main(int argc, char *argv[])
     if (sleepTime > 0)
     {
         cout << "INFO: sleeping " << sleepTime << " seconds" << endl;
-        std::this_thread::sleep_for( std::chrono::seconds( sleepTime ) );
+        std::this_thread::sleep_for(std::chrono::seconds(sleepTime));
         cout << "INFO: continuing after sleep" << endl;
     }
 
     if (opts.showVersion)
     {
-        cout << MAJOR_VERSION << "." << MINOR_VERSION << "." << REVISION_NUMBER << endl;
+        cout << MAJOR_VERSION << "." << MINOR_VERSION << "." << REVISION_NUMBER
+             << endl;
         exit(0);
     }
 
@@ -493,42 +560,65 @@ int main(int argc, char *argv[])
     else
     {
         Imf::setGlobalThreadCount(TwkUtil::SystemInfo::numCPUs() > 1
-                                  ? (TwkUtil::SystemInfo::numCPUs()-1)
-                                  : 1);
+                                      ? (TwkUtil::SystemInfo::numCPUs() - 1)
+                                      : 1);
     }
 
     //
     //  Application
     //
 
+    QSurfaceFormat fmt;
+    fmt.setRenderableType(QSurfaceFormat::OpenGL);
+
+    // NOTE_QT: Set to version 2.1 for now.
+    fmt.setMajorVersion(2);
+    fmt.setMinorVersion(1);
+
+    // fmt.setProfile(QSurfaceFormat::CoreProfile);
+    // fmt.setProfile(QSurfaceFormat::CompatibilityProfile);
+
+    QSurfaceFormat::setDefaultFormat(fmt);
+
+    // Install/remove temporary handler to silence opengl message when
+    // QApplication is created (opengl warning due to not having
+    // a compatibility profile available)
+    // The main message handler is done in RvApplication
+    qInstallMessageHandler(noOpenGLWarnOnStartup);
+
+    // init app
     QApplication* app = new QApplication(argc, argv);
+
+    // remove handler
+    qInstallMessageHandler(nullptr);
 
     QTranslator* translator = new QTranslator();
     QLocale locale = QLocale(getenv("ORIGINALLOCAL"));
-    if (translator->load(locale, QLatin1String("i18n"), "_",QLatin1String(":/translations"))) {
+    if (translator->load(locale, QLatin1String("i18n"), "_",
+                         QLatin1String(":/translations")))
+    {
         app->installTranslator(translator);
     }
 
+#ifdef PLATFORM_DARWIN
+    //
+    //  As of Qt 4.7, the qt.conf file in Contents/Resources no longer
+    //  seems to get Qt to look in our plugins dir.  As a result plugins
+    //  can be loaded from /Developer, etc, and chaos ensues.  The below
+    //  seems to do the trick.
+    //
+    QDir dir(QCoreApplication::applicationDirPath());
+    dir.cdUp();
+    dir.cd("PlugIns");
+    dir.cd("Qt");
+    QCoreApplication::addLibraryPath(dir.absolutePath());
 
-    #ifdef PLATFORM_DARWIN
-        //
-        //  As of Qt 4.7, the qt.conf file in Contents/Resources no longer
-        //  seems to get Qt to look in our plugins dir.  As a result plugins
-        //  can be loaded from /Developer, etc, and chaos ensues.  The below
-        //  seems to do the trick.
-        //
-        QDir dir(QCoreApplication::applicationDirPath());
-        dir.cdUp();
-        dir.cd("PlugIns");
-        dir.cd("Qt");
-        QCoreApplication::addLibraryPath(dir.absolutePath());
-
-        dir.cdUp();
-        dir.cdUp();
-        dir.cd("MacOS");
-        QCoreApplication::removeLibraryPath(dir.absolutePath());
-        QCoreApplication::removeLibraryPath("/Developer/Applications/Qt/plugins");
-    #endif
+    dir.cdUp();
+    dir.cdUp();
+    dir.cd("MacOS");
+    QCoreApplication::removeLibraryPath(dir.absolutePath());
+    QCoreApplication::removeLibraryPath("/Developer/Applications/Qt/plugins");
+#endif
 
     Rv::RvApplication* rvapp = new Rv::RvApplication(argc, argv);
     app->installEventFilter(rvapp);
@@ -546,21 +636,30 @@ int main(int argc, char *argv[])
     //      5) ./rvrc.mu
     //
 
-    if (getenv("RV_APP_RVIO")) bundle.setEnvVar("RV_APP_RVIO_SET_BY_USER", "true");
-    else                       bundle.setEnvVar("RV_APP_RVIO", bundle.executableFile("rvio"));
+    if (getenv("RV_APP_RVIO"))
+        bundle.setEnvVar("RV_APP_RVIO_SET_BY_USER", "true");
+    else
+        bundle.setEnvVar("RV_APP_RVIO", bundle.executableFile("rvio"));
 
     bundle.setEnvVar("RV_APP_RV", bundle.executableFile("RV"));
     bundle.setEnvVar("RV_APP_RV_SHORT_NAME", "RV");
     bundle.setEnvVar("RV_APP_MANUAL", bundle.resource("rv_manual", "pdf"));
-    bundle.setEnvVar("RV_APP_MANUAL_HTML", bundle.resource("rv_manual", "html"));
-    bundle.setEnvVar("RV_APP_SDI_MANUAL", bundle.resource("rvsdi_manual", "pdf"));
-    bundle.setEnvVar("RV_APP_SDI_MANUAL_HTML", bundle.resource("rvsdi_manual", "html"));
-    bundle.setEnvVar("RV_APP_REFERENCE_MANUAL", bundle.resource("rv_reference", "pdf"));
-    bundle.setEnvVar("RV_APP_REFERENCE_MANUAL_HTML", bundle.resource("rv_reference", "html"));
+    bundle.setEnvVar("RV_APP_MANUAL_HTML",
+                     bundle.resource("rv_manual", "html"));
+    bundle.setEnvVar("RV_APP_SDI_MANUAL",
+                     bundle.resource("rvsdi_manual", "pdf"));
+    bundle.setEnvVar("RV_APP_SDI_MANUAL_HTML",
+                     bundle.resource("rvsdi_manual", "html"));
+    bundle.setEnvVar("RV_APP_REFERENCE_MANUAL",
+                     bundle.resource("rv_reference", "pdf"));
+    bundle.setEnvVar("RV_APP_REFERENCE_MANUAL_HTML",
+                     bundle.resource("rv_reference", "html"));
     bundle.setEnvVar("RV_APP_MU_MANUAL", bundle.resource("mu", "pdf"));
     bundle.setEnvVar("RV_APP_GTO_REFERENCE", bundle.resource("gto", "pdf"));
-    bundle.setEnvVar("RV_APP_RELEASE_NOTES", bundle.resource("rv_release_notes", "html"));
-    bundle.setEnvVar("RV_APP_LICENSES_NOTES", bundle.resource("rv_client_licenses", "html"));
+    bundle.setEnvVar("RV_APP_RELEASE_NOTES",
+                     bundle.resource("rv_release_notes", "html"));
+    bundle.setEnvVar("RV_APP_LICENSES_NOTES",
+                     bundle.resource("rv_client_licenses", "html"));
     bundle.addPathToEnvVar("OIIO_LIBRARY_PATH", bundle.appPluginPath("OIIO"));
 
     //
@@ -579,13 +678,14 @@ int main(int argc, char *argv[])
 
     try
     {
-        //TwkFB::GenericIO::loadPlugins("TWK_FB_PLUGIN_PATH");
+        // TwkFB::GenericIO::loadPlugins("TWK_FB_PLUGIN_PATH");
         TwkFB::loadProxyPlugins("TWK_FB_PLUGIN_PATH");
         TwkMovie::loadProxyPlugins("TWK_MOVIE_PLUGIN_PATH");
     }
     catch (...)
     {
-        cerr << "WARNING: a problem occured while loading image plugins." << endl;
+        cerr << "WARNING: a problem occured while loading image plugins."
+             << endl;
         cerr << "         some plugins may not have been loaded." << endl;
     }
 
@@ -602,7 +702,8 @@ int main(int argc, char *argv[])
     //  QT starts here
     //
 
-    if (!getenv("RV_DARK")) bundle.setEnvVar("RV_DARK", "", true);
+    if (!getenv("RV_DARK"))
+        bundle.setEnvVar("RV_DARK", "", true);
 
     QString csstext;
 
@@ -613,9 +714,7 @@ int main(int argc, char *argv[])
     }
     else
     {
-        csstext = QString(rv_mac_dark)
-                    .arg(opts.fontSize1)
-                    .arg(opts.fontSize2);
+        csstext = QString(rv_mac_dark).arg(opts.fontSize1).arg(opts.fontSize2);
     }
 
     if (!opts.qtstyle || !strcmp(opts.qtstyle, "RV"))
@@ -638,18 +737,17 @@ int main(int argc, char *argv[])
             exit(-1);
         }
 
-        TwkApp::initWithFile(TwkApp::muContext(),
-                             TwkApp::muProcess(),
-                             TwkApp::muModuleList(),
-                             muInitFile.c_str());
+        TwkApp::initWithFile(TwkApp::muContext(), TwkApp::muProcess(),
+                             TwkApp::muModuleList(), muInitFile.c_str());
 
-        TwkApp::pyInitWithFile(pyInitFile.c_str(), Rv::pyRvAppCommands(), Rv::pyUICommands());
+        TwkApp::pyInitWithFile(pyInitFile.c_str(), Rv::pyRvAppCommands(),
+                               Rv::pyUICommands());
     }
-    catch (const exception &e)
+    catch (const exception& e)
     {
         cerr << "ERROR: during initialization: " << e.what() << endl;
         rvapp->console()->processLastTextBuffer();
-        exit( -1 );
+        exit(-1);
     }
 
     rvapp->console()->processTextBuffer();
@@ -677,16 +775,16 @@ int main(int argc, char *argv[])
     {
         try
         {
-            #ifdef PLATFORM_DARWIN
-                //
-                //  As of Qt 4.7, they have moved their event handler registration deep
-                //  into the event loop so it's not possible to override it.  Turns out
-                //  that if we set this attribute at exactly this moment, it prevents the
-                //  handler registration overriding without any other bad effects.  We
-                //  hope.  XXX
-                //
-                QCoreApplication::setAttribute (Qt::AA_DontUseNativeMenuBar, false);
-            #endif
+#ifdef PLATFORM_DARWIN
+            //
+            //  As of Qt 4.7, they have moved their event handler registration
+            //  deep into the event loop so it's not possible to override it.
+            //  Turns out that if we set this attribute at exactly this moment,
+            //  it prevents the handler registration overriding without any
+            //  other bad effects.  We hope.  XXX
+            //
+            QCoreApplication::setAttribute(Qt::AA_DontUseNativeMenuBar, false);
+#endif
             rval = app->exec();
         }
         catch (TwkExc::Exception& exc)
@@ -694,10 +792,9 @@ int main(int argc, char *argv[])
             cerr << exc;
             exit(-1);
         }
-        catch (const exception &e)
+        catch (const exception& e)
         {
-            cerr << "ERROR: Unhandled exception during execution: "
-                 << e.what()
+            cerr << "ERROR: Unhandled exception during execution: " << e.what()
                  << endl;
 
             exit(-1);
@@ -710,8 +807,8 @@ int main(int argc, char *argv[])
     }
 
     TwkMovie::GenericIO::shutdown(); // Shutdown TwkMovie::GenericIO plugins
-    TwkFB::GenericIO::shutdown(); // Shutdown TwkFB::GenericIO plugins
-    TwkFB::ThreadPool::shutdown(); // Shutdown TwkFB ThreadPool
+    TwkFB::GenericIO::shutdown();    // Shutdown TwkFB::GenericIO plugins
+    TwkFB::ThreadPool::shutdown();   // Shutdown TwkFB ThreadPool
 
     TwkGLF::UninitPBOPools();
 

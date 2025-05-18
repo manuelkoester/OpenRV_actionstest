@@ -43,9 +43,17 @@ IF(NOT EXISTS "${PROJECT_SOURCE_DIR}/src/pub/CMakeLists.txt")
 ENDIF()
 
 IF(RV_TARGET_WINDOWS)
-  INCLUDE(vcpkg)
+  INCLUDE(expat)
 ENDIF()
-INCLUDE(qt5)
+
+# TODO_QT: Not generic enough.. But maybe we could use something like NOT CY2023
+#          since after 2023, it is Qt6
+IF(RV_VFX_PLATFORM STREQUAL CY2023)
+  INCLUDE(qt5)
+ELSEIF(RV_VFX_PLATFORM STREQUAL CY2024)
+  INCLUDE(qt6)
+ENDIF()
+
 INCLUDE(openssl) # Python3 requirement
 INCLUDE(python3)
 INCLUDE(boost)
@@ -81,7 +89,9 @@ IF(RV_TARGET_WINDOWS)
 ENDIF()
 INCLUDE(yaml-cpp) # depends on OCIO
 
+INCLUDE(bmd.cmake)
 INCLUDE(spdlog)
+INCLUDE(aja.cmake)
 
 LIST(REMOVE_DUPLICATES RV_DEPS_LIST)
 SET(RV_DEPS_LIST
@@ -89,7 +99,11 @@ SET(RV_DEPS_LIST
     CACHE INTERNAL ""
 )
 
+MESSAGE(STATUS "Using AJA:          ${RV_DEPS_AJA_VERSION}")
 MESSAGE(STATUS "Using atomic_ops:   ${RV_DEPS_ATOMIC_OPS_VERSION}")
+IF(RV_DEPS_BMD_VERSION)
+  MESSAGE(STATUS "Using BMD:          ${RV_DEPS_BMD_VERSION}")
+ENDIF()
 MESSAGE(STATUS "Using Boost:        ${RV_DEPS_BOOST_VERSION}")
 MESSAGE(STATUS "Using Dav1d:        ${RV_DEPS_DAV1D_VERSION}")
 MESSAGE(STATUS "Using FFMPEG:       ${RV_DEPS_FFMPEG_VERSION}")
@@ -114,8 +128,21 @@ IF(RV_TARGET_WINDOWS)
 ENDIF()
 MESSAGE(STATUS "Using PNG:          ${RV_DEPS_PNG_VERSION}")
 MESSAGE(STATUS "Using Python3:      ${RV_DEPS_PYTHON3_VERSION}")
-MESSAGE(STATUS "Using PySide2:      ${RV_DEPS_PYSIDE2_VERSION}")
-MESSAGE(STATUS "Using Qt5:          ${RV_DEPS_QT5_VERSION}")
+
+RV_VFX_SET_VARIABLE(
+  _rv_deps_pyside_version
+  CY2023 "Using PySide2:      ${RV_DEPS_PYSIDE_VERSION}"
+  CY2024 "Using PySide6:      ${RV_DEPS_PYSIDE_VERSION}"
+)
+MESSAGE(STATUS "${_rv_deps_pyside_version}")
+
+RV_VFX_SET_VARIABLE(
+  _rv_deps_qt_version
+  CY2023 "Using Qt5:          ${RV_DEPS_QT5_VERSION}"
+  CY2024 "Using Qt6:          ${RV_DEPS_QT6_VERSION}"
+)
+MESSAGE(STATUS "${_rv_deps_qt_version}")
+
 MESSAGE(STATUS "Using Raw:          ${RV_DEPS_RAW_VERSION}")
 MESSAGE(STATUS "Using Tiff:         ${RV_DEPS_TIFF_VERSION}")
 MESSAGE(STATUS "Using WebP:         ${RV_DEPS_WEBP_VERSION}")

@@ -3,15 +3,16 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
-CMAKE_MINIMUM_REQUIRED(VERSION 3.24)
 
-# These variables are parsed by sphinx for the documentation.
-# One-line formatting facilitates parsing and readability.
+# Need 3.27 for Boost 1.82 (FindBoost.cmake).
+CMAKE_MINIMUM_REQUIRED(VERSION 3.27)
+
+# These variables are parsed by sphinx for the documentation. One-line formatting facilitates parsing and readability.
 # cmake-format: off
-SET(RV_MAJOR_VERSION "2" CACHE STRING "RV's version major")
+SET(RV_MAJOR_VERSION "3" CACHE STRING "RV's version major")
 SET(RV_MINOR_VERSION "0" CACHE STRING "RV's version minor")
 SET(RV_REVISION_NUMBER "0" CACHE STRING "RV's revision number")
-SET(RV_VERSION_YEAR "2024" CACHE STRING "RV's year of release.")
+SET(RV_VERSION_YEAR "2025" CACHE STRING "RV's year of release.")
 # cmake-format: on
 
 IF(NOT CMAKE_BUILD_TYPE)
@@ -26,17 +27,17 @@ IF(CMAKE_BUILD_TYPE
   MESSAGE(FATAL_ERROR "Invalid value for CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
 ENDIF()
 
-IF (NOT RV_RELEASE_DESCRIPTION)
-    IF(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
-        SET(RV_RELEASE_DESCRIPTION
-            "DEVELOPMENT"
-        )
-    ELSE()
-        # as checked 'src/lib/app/RvCommon/RvApplication.cpp'
-        SET(RV_RELEASE_DESCRIPTION
-            "RELEASE"
-        )
-    ENDIF()
+IF(NOT RV_RELEASE_DESCRIPTION)
+  IF(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+    SET(RV_RELEASE_DESCRIPTION
+        "DEVELOPMENT"
+    )
+  ELSE()
+    # as checked 'src/lib/app/RvCommon/RvApplication.cpp'
+    SET(RV_RELEASE_DESCRIPTION
+        "RELEASE"
+    )
+  ENDIF()
 ENDIF()
 
 SET(RV_UI_APPLICATION_NAME

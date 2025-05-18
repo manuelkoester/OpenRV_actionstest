@@ -3,8 +3,8 @@
 [![Open RV](docs/images/OpenRV_icon.png)](https://github.com/AcademySoftwareFoundation/OpenRV.git)
 ---
 
-![Supported Versions](https://img.shields.io/badge/python-3.10-blue)
-[![Supported VFX Platform Versions](https://img.shields.io/badge/vfx%20platform-2023-lightgrey.svg)](http://www.vfxplatform.com/)
+![Supported Versions](https://img.shields.io/badge/python-3.11-blue)
+[![Supported VFX Platform Versions](https://img.shields.io/badge/vfx%20platform-2024-lightgrey.svg)](http://www.vfxplatform.com/)
 [![docs](https://readthedocs.org/projects/aswf-openrv/badge/?version=latest)](https://aswf-openrv.readthedocs.io/en/latest)
 
 ## Overview
@@ -30,13 +30,23 @@ following command:
 git submodule update --init --recursive
 ```
 
+### Configuring Git to use the ignore file with `git blame`
+
+A `.git-blame-ignore-revs` file lists commits to ignore when running `git blame`, such as formatting commits. This allows you to use `git blame` without these commits cluttering the Git history. To configure Git to use this file when running `git blame`, use the following command:
+
+```bash
+git config blame.ignoreRevsFile .git-blame-ignore-revs
+```
+
 ## Building the workstation
 
 Open RV is currently supported on the following operating systems:
 
 * [Windows 10 and 11](docs/build_system/config_windows.md)
-* [macOS Big Sur, Monterey and Ventura](docs/build_system/config_macos.md)
+* [macOS](docs/build_system/config_macos.md)
 * [Linux Centos 7](docs/build_system/config_linux_centos7.md)
+* [Linux Rocky 8](docs/build_system/config_linux_rocky8.md)
+* [Linux Rocky 9](docs/build_system/config_linux_rocky9.md)
 
 Support for other operating systems is on a best effort basis.
 
@@ -54,16 +64,41 @@ the MACOSX_DEPLOYMENT_TARGET environment variable.
 
 ### Contributor setup
 
-This repository uses a pre-commit to execute formatting before a commit. To install the pre-commit hooks:
+This repository uses the `pre-commit` tool to execute formatting hooks before a commit. To install the pre-commit hooks, ensure that the packages in `requirements.txt` are installed, and then run the following command:
 
-```shell
+```bash
 pre-commit install
 ```
+
+#### Clang-tidy
+
+It is highly suggested to enable clang-tidy locally to lint the C++ code you plan to contribute to the project. A `.clang-tidy` configuration file is present at the root of the project to help standardize linting rules. While it is recommended to use clangd (which integrates clang-tidy), you can refer to the list of other well-known clang-tidy integrations [here](https://clang.llvm.org/extra/clang-tidy/Integrations.html). For more details on how to install everything you need for your IDE, please follow the steps outlined [here](https://clangd.llvm.org/installation).
+
+1. Install clangd with your package manager
+2. Install the clangd extension in your IDE
+    > **Note:** For VSCode users, after installing [vscode-clangd](https://marketplace.visualstudio.com/items?itemName=llvm-vs-code-extensions.vscode-clangd), you need to disable [Microsoft C/C++ extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools) IntelliSense by adding `"C_Cpp.intelliSenseEngine": "disabled"` to your `settings.json`.
+3. Generate a `compile_commands.json` file with CMake during the [configure step](#configure)
+
+     ```shell
+    rvcfg -DCMAKE_EXPORT_COMPILE_COMMANDS=1
+    ```
+
+4. Create a symlink to the `compile_commands.json` file in the root directory of the project so that `clangd` can locate it:
+
+    ```shell
+    ln -s _build/compile_commands.json compile_commands.json
+    ```
 
 ### Cleanup
 
 To clean your build directory and restart from a clean slate, use the `rvclean` common build alias, or delete
 the `_build` folder.
+
+### Using a Python Virtual Environment
+
+Open RV automatically sets up a Python virtual environment when the user bootstraps (`rvbootstrap`), builds (`rvbuild`) or configures (`rvcfg`) their project. After each of these commands, you should see that the executing instance of the terminal is using a virtual environment with the name `.venv`.
+
+If this is not the case or if you would like to set up your virtual environment directly, you can run the command `rvenv`.
 
 ### Bootstrap
 
@@ -75,14 +110,30 @@ Use the `rvsetup` common build alias to run the bootstrap step.
 
 #### Manually
 
+Please ensure that a virtual environment is running before this command is executed.
+
 ```bash
-python3 -m pip install --user --upgrade -r requirements.txt
+python3 -m pip install -r requirements.txt
 ```
 
 Note that on Windows, use the following command instead from an MSYS2-MinGW64 shell:
 ```bash
 SETUPTOOLS_USE_DISTUTILS=stdlib python3 -m pip install --user --upgrade -r requirements.txt
 ```
+
+### Blackmagicdesign&reg; Video Output Support (Optional)
+
+Download the Blackmagicdesign&reg; SDK to add Blackmagicdesign&reg; output capability to Open RV (optional): https://www.blackmagicdesign.com/desktopvideo_sdk<br>
+Then set RV_DEPS_BMD_DECKLINK_SDK_ZIP_PATH to the path of the downloaded zip file on the rvcfg line.<br>
+Example:
+```bash
+rvcfg -DRV_DEPS_BMD_DECKLINK_SDK_ZIP_PATH='<downloads_path>/Blackmagic_DeckLink_SDK_14.1.zip'
+```
+
+### NDI&reg; Video Output Support (Optional)
+
+Download and install the NDI&reg; SDK to add NDI&reg; output capability to Open RV (optional): https://ndi.video/<br>
+This must be done before the `configure` step.
 
 ### Configure
 
@@ -95,6 +146,32 @@ QT5 package.
 #### Common build alias
 
 Use the `rvcfg` (the common build alias) to run the configuration step. You can also use `rvcfgd` to configure in Debug.
+
+#### How to enable non free FFmpeg codecs
+
+Legal Notice: Non free FFmpeg codecs are disabled by default. Please check with your legal department whether you have the proper licenses and rights to use these codecs. 
+ASWF is not responsible for any unlicensed use of these codecs.
+
+The RV_FFMPEG_NON_FREE_DECODERS_TO_ENABLE and RV_FFMPEG_NON_FREE_ENCODERS_TO_ENABLE can optionally be specified at configure time to enable non free FFmpeg decoders and encoders respectively.
+
+Example:
+```bash
+rvcfg -DRV_FFMPEG_NON_FREE_DECODERS_TO_ENABLE="aac;hevc" -DRV_FFMPEG_NON_FREE_ENCODERS_TO_ENABLE="aac"
+```
+
+##### Apple ProRes on Apple Silicon
+
+On Apple Silicon machines, Open RV supports hardware decoding through Apple's VideoToolbox framework. This feature is enabled by default but can be controlled using the `-DRV_FFMPEG_USE_VIDEOTOOLBOX` option. Set this option to `ON` to enable or `OFF` to disable VideoToolbox hardware decoding.
+
+To enable decoding of ProRes media files, you must also specify the following option during the configuration step:
+
+```bash
+-DRV_FFMPEG_NON_FREE_DECODERS_TO_ENABLE="prores"
+```
+
+Note that you should always have `-DRV_FFMPEG_USE_VIDEOTOOLBOX` enabled when decoding Apple ProRes videos on Apple Silicon machines. Failure to do so will result in performance issues and is not compliant with Apple's licensing requirements.
+
+**Important:** Before enabling ProRes decoding, you are required to obtain a proper license agreement from Apple by contacting [ProRes@apple.com](mailto:ProRes@apple.com).
 
 #### Manually
 
@@ -188,3 +265,6 @@ Use the `rvinst` common build alias to install OpenRV.
 ```shell
 cmake --install _build --prefix _install
 ```
+
+See [THIRD-PARTY.md](THIRD-PARTY.md) for license information
+about portions of Open RV that have been imported from other projects.

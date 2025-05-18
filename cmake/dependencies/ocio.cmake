@@ -72,7 +72,7 @@ IF(RV_TARGET_WINDOWS)
       "${RV_DEPS_OCIO_DIST_DIR}/lib"
   )
 ENDIF()
-IF(RV_TARGET_LINUX)
+IF(RHEL_VERBOSE)
   SET(_ociolib_dir
       "${RV_DEPS_OCIO_DIST_DIR}/lib64"
   )
@@ -168,8 +168,8 @@ IF(NOT RV_TARGET_WINDOWS)
     INSTALL_DIR ${_install_dir}
     DEPENDS Boost::headers RV_DEPS_PYTHON3 Imath::Imath ZLIB::ZLIB
     CONFIGURE_COMMAND ${CMAKE_COMMAND} ${_configure_options}
-    BUILD_COMMAND ${_make_command} -j${_cpu_count}
-    INSTALL_COMMAND ${_make_command} install
+    BUILD_COMMAND ${_cmake_build_command}
+    INSTALL_COMMAND ${_cmake_install_command}
     BUILD_IN_SOURCE FALSE
     BUILD_ALWAYS FALSE
     BUILD_BYPRODUCTS ${_byproducts}
@@ -189,14 +189,18 @@ ELSE() # Windows
     FILE(REMOVE ${_backup_pyopencolorio_cmakelists_path})
   ENDIF()
 
-  GET_TARGET_PROPERTY(_vcpkg_location VCPKG::VCPKG IMPORTED_LOCATION)
-  GET_FILENAME_COMPONENT(_vcpkg_path ${_vcpkg_location} DIRECTORY)
-
   # Some options are not multi-platform so we start clean.
   SET(_configure_options
       ""
   )
   STRING(REPLACE "." "" PYTHON_VERSION_SHORT_NO_DOT ${RV_DEPS_PYTHON_VERSION_SHORT})
+  
+  # Windows only.
+  # Because of an issue in Debug with minizip-ng finding ZLIB at two locations,
+  # ZLIB_LIBRARY and ZLIB_INCLUDE_DIR is used for both Release and Debug. 
+  # ZLIB_ROOT is not enough to fix the issue.
+  GET_TARGET_PROPERTY(_zlib_library ZLIB::ZLIB IMPORTED_IMPLIB)
+  GET_TARGET_PROPERTY(_zlib_include_dir ZLIB::ZLIB INTERFACE_INCLUDE_DIRECTORIES)
 
   LIST(
     APPEND
@@ -206,9 +210,9 @@ ELSE() # Windows
     "-DOCIO_VERBOSE=ON"
     "-DCMAKE_INSTALL_PREFIX=${_install_dir}"
     "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
-    "-DZLIB_ROOT=${RV_DEPS_ZLIB_ROOT_DIR}"
-    # Using the expat build with /MD to match the CRT.
-    "-Dexpat_DIR=${_vcpkg_path}/packages/expat_x64-windows-static-md/share/expat"
+    "-DZLIB_LIBRARY=${_zlib_library}"
+    "-DZLIB_INCLUDE_DIR=${_zlib_include_dir}"
+    "-Dexpat_ROOT=${RV_DEPS_EXPAT_ROOT_DIR}"
     "-DImath_DIR=${RV_DEPS_IMATH_ROOT_DIR}/lib/cmake/Imath"
     "-DPython_ROOT=${RV_DEPS_BASE_DIR}/RV_DEPS_PYTHON3/install"
     # Mandatory param: OCIO CMake code finds Python.
@@ -245,16 +249,6 @@ ELSE() # Windows
        # "--parallel"    # parallel breaks minizip because Zlib is built before minizip and minizip depends on Zlib. "${_cpu_count}"   # Moreover, our Zlib
        # isn't compatible with OCIO: tons of STD C++ missing symbols errors.
   )
-  LIST(
-    APPEND
-    _ocio_install_options
-    "--install"
-    "${_build_dir}"
-    "--prefix"
-    "${_install_dir}"
-    "--config"
-    "${CMAKE_BUILD_TYPE}" # for --config
-  )
 
   EXTERNALPROJECT_ADD(
     ${_target}
@@ -266,45 +260,16 @@ ELSE() # Windows
     SOURCE_DIR ${_source_dir}
     BINARY_DIR ${_build_dir}
     INSTALL_DIR ${_install_dir}
-    DEPENDS Boost::headers RV_DEPS_PYTHON3 Imath::Imath VCPKG::VCPKG ZLIB::ZLIB
+    DEPENDS Boost::headers RV_DEPS_PYTHON3 Imath::Imath ZLIB::ZLIB EXPAT::EXPAT
     PATCH_COMMAND 
       python3 ${_pyopencolorio_patch_script_path} ${_pyopencolorio_cmakelists_path}
     CONFIGURE_COMMAND ${CMAKE_COMMAND} ${_configure_options}
     BUILD_COMMAND ${CMAKE_COMMAND} ${_ocio_build_options}
-    INSTALL_COMMAND ${CMAKE_COMMAND} ${_ocio_install_options}
+    INSTALL_COMMAND ${_cmake_install_command}
     BUILD_IN_SOURCE FALSE
     BUILD_ALWAYS FALSE
     BUILD_BYPRODUCTS ${_byproducts}
     USES_TERMINAL_BUILD TRUE
-  )
-
-  # To update the baseline property in the OCIO VCPKG JSON:
-  # See https://learn.microsoft.com/en-us/vcpkg/users/versioning#baselines
-  # vcpkg x-update-baseline
-  # Caveat: the file must be called vcpkg.json to work.
-  # Workaround: change ocio_vcpkg.json to vcpkg.json, update the baseline, and rename it back.
-  SET(_vcpkg_manifest
-      "${RV_PKGMANCONFIG_DIR}/ocio_vcpkg.json"
-  )
-  EXTERNALPROJECT_ADD_STEP(
-    ${_target} add_vcpkg_manifest
-    COMMENT "Copying the VCPKG manifest"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${_vcpkg_manifest} "${_source_dir}/vcpkg.json"
-    DEPENDERS configure
-  )
-
-  EXTERNALPROJECT_ADD_STEP(
-    ${_target} install_vcpkg_manifest
-    COMMENT "Installing OCIO dependencies via VCPKG"
-    # IMPORTANT: VCPKG Manifest mode (using a .json) does not support differents triplets per dependencies.
-    #            This is not a problem right now because only expat is installed with vcpkg.
-    #            Expat is installed with vcpkg because there's an expat library that comes with MSYS2 on Windows,
-    #            and it is causing compiler error.
-    #            OCIO installs the remaining dependencies (yaml-cpp, pystring, pybind11 and minizip-ng).
-    COMMAND ${_vcpkg_location} install --triplet x64-windows-static-md
-    DEPENDEES add_vcpkg_manifest
-    DEPENDERS configure
-    WORKING_DIRECTORY "${_source_dir}"
   )
 ENDIF()
 
@@ -361,8 +326,8 @@ IF(RV_TARGET_WINDOWS)
       TARGET ${_target}
       POST_BUILD
       COMMENT "Rename PyOpenColorIO.py to PyOpenColorIO_d.py in '${_rv_stage_lib_site_package_dir}' and '${_ocio_stage_plugins_python_dir}."
-      COMMAND ${CMAKE_COMMAND} -E rename ${_rv_stage_lib_site_package_dir}/PyOpenColorIO.pyd ${_rv_stage_lib_site_package_dir}/PyOpenColorIO_d.pyd
-      COMMAND ${CMAKE_COMMAND} -E rename ${_pyocio_lib} ${_ocio_stage_plugins_python_dir}/PyOpenColorIO_d.pyd
+      COMMAND ${CMAKE_COMMAND} -E copy ${_rv_stage_lib_site_package_dir}/PyOpenColorIO.pyd ${_rv_stage_lib_site_package_dir}/PyOpenColorIO_d.pyd
+      COMMAND ${CMAKE_COMMAND} -E copy ${_pyocio_lib} ${_ocio_stage_plugins_python_dir}/PyOpenColorIO_d.pyd
     )
   ENDIF()
 ENDIF()

@@ -23,15 +23,29 @@ SET(_target
     "RV_DEPS_FFMPEG"
 )
 
-SET(_version
-    "n4.4.3"
-)
+IF(RV_FFMPEG_7)
+  SET(_version
+      "n7.1"
+  )
+
+  SET(_download_hash
+      "a7a85ec05c9bc3aeefee12743899d8ab"
+  )
+ELSEIF(RV_FFMPEG_6)
+  SET(_version
+      "n6.1.2"
+  )
+
+  SET(_download_hash
+      "953b858e5be3ab66232bdbb90e42f50d"
+  )
+ELSE()
+  # This shouldn't happen, but it could if there are changes the acceptable versions of FFmpeg in ffmpeg.cmake and this section is not updated accordingly.
+  MESSAGE(FATAL_ERROR "The requested version of FFmpeg is not supported.")
+ENDIF()
+
 SET(_download_url
     "https://github.com/FFmpeg/FFmpeg/archive/refs/tags/${_version}.zip"
-)
-
-SET(_download_hash
-    "51ffa9de9e5b0c17cbabc0d8b780beb2"
 )
 
 SET(_base_dir
@@ -52,19 +66,6 @@ SET(_configure_command
     sh ./configure
 )
 
-IF(${RV_OSX_EMULATION})
-  SET(_darwin_x86_64
-      "arch" "${RV_OSX_EMULATION_ARCH}"
-  )
-
-  SET(_make_command
-      ${_darwin_x86_64} ${_make_command}
-  )
-  SET(_configure_command
-      ${_darwin_x86_64} ${_configure_command}
-  )
-ENDIF()
-
 SET(_include_dir
     ${_install_dir}/include
 )
@@ -78,54 +79,109 @@ ELSE()
   )
 ENDIF()
 
-IF(RV_TARGET_DARWIN)
-  SET(_ffmpeg_avutil_lib_name
-      ${CMAKE_SHARED_LIBRARY_PREFIX}avutil.56${CMAKE_SHARED_LIBRARY_SUFFIX}
-  )
-  SET(_ffmpeg_swresample_lib_name
-      ${CMAKE_SHARED_LIBRARY_PREFIX}swresample.3${CMAKE_SHARED_LIBRARY_SUFFIX}
-  )
-  SET(_ffmpeg_swscale_lib_name
-      ${CMAKE_SHARED_LIBRARY_PREFIX}swscale.5${CMAKE_SHARED_LIBRARY_SUFFIX}
-  )
-  SET(_ffmpeg_avcodec_lib_name
-      ${CMAKE_SHARED_LIBRARY_PREFIX}avcodec.58${CMAKE_SHARED_LIBRARY_SUFFIX}
-  )
-  SET(_ffmpeg_avformat_lib_name
-      ${CMAKE_SHARED_LIBRARY_PREFIX}avformat.58${CMAKE_SHARED_LIBRARY_SUFFIX}
-  )
-ELSEIF(RV_TARGET_LINUX)
-  SET(_ffmpeg_avutil_lib_name
-      ${CMAKE_SHARED_LIBRARY_PREFIX}avutil${CMAKE_SHARED_LIBRARY_SUFFIX}.56
-  )
-  SET(_ffmpeg_swresample_lib_name
-      ${CMAKE_SHARED_LIBRARY_PREFIX}swresample${CMAKE_SHARED_LIBRARY_SUFFIX}.3
-  )
-  SET(_ffmpeg_swscale_lib_name
-      ${CMAKE_SHARED_LIBRARY_PREFIX}swscale${CMAKE_SHARED_LIBRARY_SUFFIX}.5
-  )
-  SET(_ffmpeg_avcodec_lib_name
-      ${CMAKE_SHARED_LIBRARY_PREFIX}avcodec${CMAKE_SHARED_LIBRARY_SUFFIX}.58
-  )
-  SET(_ffmpeg_avformat_lib_name
-      ${CMAKE_SHARED_LIBRARY_PREFIX}avformat${CMAKE_SHARED_LIBRARY_SUFFIX}.58
-  )
-ELSEIF(RV_TARGET_WINDOWS)
-  SET(_ffmpeg_avutil_lib_name
-      ${CMAKE_SHARED_LIBRARY_PREFIX}avutil-56${CMAKE_SHARED_LIBRARY_SUFFIX}
-  )
-  SET(_ffmpeg_swresample_lib_name
-      ${CMAKE_SHARED_LIBRARY_PREFIX}swresample-3${CMAKE_SHARED_LIBRARY_SUFFIX}
-  )
-  SET(_ffmpeg_swscale_lib_name
-      ${CMAKE_SHARED_LIBRARY_PREFIX}swscale-5${CMAKE_SHARED_LIBRARY_SUFFIX}
-  )
-  SET(_ffmpeg_avcodec_lib_name
-      ${CMAKE_SHARED_LIBRARY_PREFIX}avcodec-58${CMAKE_SHARED_LIBRARY_SUFFIX}
-  )
-  SET(_ffmpeg_avformat_lib_name
-      ${CMAKE_SHARED_LIBRARY_PREFIX}avformat-58${CMAKE_SHARED_LIBRARY_SUFFIX}
-  )
+IF(RV_FFMPEG_7)
+  IF(RV_TARGET_DARWIN)
+    SET(_ffmpeg_avutil_lib_name
+        ${CMAKE_SHARED_LIBRARY_PREFIX}avutil.59${CMAKE_SHARED_LIBRARY_SUFFIX}
+    )
+    SET(_ffmpeg_swresample_lib_name
+        ${CMAKE_SHARED_LIBRARY_PREFIX}swresample.5${CMAKE_SHARED_LIBRARY_SUFFIX}
+    )
+    SET(_ffmpeg_swscale_lib_name
+        ${CMAKE_SHARED_LIBRARY_PREFIX}swscale.8${CMAKE_SHARED_LIBRARY_SUFFIX}
+    )
+    SET(_ffmpeg_avcodec_lib_name
+        ${CMAKE_SHARED_LIBRARY_PREFIX}avcodec.61${CMAKE_SHARED_LIBRARY_SUFFIX}
+    )
+    SET(_ffmpeg_avformat_lib_name
+        ${CMAKE_SHARED_LIBRARY_PREFIX}avformat.61${CMAKE_SHARED_LIBRARY_SUFFIX}
+    )
+  ELSEIF(RV_TARGET_LINUX)
+    SET(_ffmpeg_avutil_lib_name
+        ${CMAKE_SHARED_LIBRARY_PREFIX}avutil${CMAKE_SHARED_LIBRARY_SUFFIX}.59
+    )
+    SET(_ffmpeg_swresample_lib_name
+        ${CMAKE_SHARED_LIBRARY_PREFIX}swresample${CMAKE_SHARED_LIBRARY_SUFFIX}.5
+    )
+    SET(_ffmpeg_swscale_lib_name
+        ${CMAKE_SHARED_LIBRARY_PREFIX}swscale${CMAKE_SHARED_LIBRARY_SUFFIX}.8
+    )
+    SET(_ffmpeg_avcodec_lib_name
+        ${CMAKE_SHARED_LIBRARY_PREFIX}avcodec${CMAKE_SHARED_LIBRARY_SUFFIX}.61
+    )
+    SET(_ffmpeg_avformat_lib_name
+        ${CMAKE_SHARED_LIBRARY_PREFIX}avformat${CMAKE_SHARED_LIBRARY_SUFFIX}.61
+    )
+  ELSEIF(RV_TARGET_WINDOWS)
+    SET(_ffmpeg_avutil_lib_name
+        ${CMAKE_SHARED_LIBRARY_PREFIX}avutil-59${CMAKE_SHARED_LIBRARY_SUFFIX}
+    )
+    SET(_ffmpeg_swresample_lib_name
+        ${CMAKE_SHARED_LIBRARY_PREFIX}swresample-5${CMAKE_SHARED_LIBRARY_SUFFIX}
+    )
+    SET(_ffmpeg_swscale_lib_name
+        ${CMAKE_SHARED_LIBRARY_PREFIX}swscale-8${CMAKE_SHARED_LIBRARY_SUFFIX}
+    )
+    SET(_ffmpeg_avcodec_lib_name
+        ${CMAKE_SHARED_LIBRARY_PREFIX}avcodec-61${CMAKE_SHARED_LIBRARY_SUFFIX}
+    )
+    SET(_ffmpeg_avformat_lib_name
+        ${CMAKE_SHARED_LIBRARY_PREFIX}avformat-61${CMAKE_SHARED_LIBRARY_SUFFIX}
+    )
+  ENDIF()
+ELSEIF(RV_FFMPEG_6)
+  IF(RV_TARGET_DARWIN)
+    SET(_ffmpeg_avutil_lib_name
+        ${CMAKE_SHARED_LIBRARY_PREFIX}avutil.58${CMAKE_SHARED_LIBRARY_SUFFIX}
+    )
+    SET(_ffmpeg_swresample_lib_name
+        ${CMAKE_SHARED_LIBRARY_PREFIX}swresample.4${CMAKE_SHARED_LIBRARY_SUFFIX}
+    )
+    SET(_ffmpeg_swscale_lib_name
+        ${CMAKE_SHARED_LIBRARY_PREFIX}swscale.7${CMAKE_SHARED_LIBRARY_SUFFIX}
+    )
+    SET(_ffmpeg_avcodec_lib_name
+        ${CMAKE_SHARED_LIBRARY_PREFIX}avcodec.60${CMAKE_SHARED_LIBRARY_SUFFIX}
+    )
+    SET(_ffmpeg_avformat_lib_name
+        ${CMAKE_SHARED_LIBRARY_PREFIX}avformat.60${CMAKE_SHARED_LIBRARY_SUFFIX}
+    )
+  ELSEIF(RV_TARGET_LINUX)
+    SET(_ffmpeg_avutil_lib_name
+        ${CMAKE_SHARED_LIBRARY_PREFIX}avutil${CMAKE_SHARED_LIBRARY_SUFFIX}.58
+    )
+    SET(_ffmpeg_swresample_lib_name
+        ${CMAKE_SHARED_LIBRARY_PREFIX}swresample${CMAKE_SHARED_LIBRARY_SUFFIX}.4
+    )
+    SET(_ffmpeg_swscale_lib_name
+        ${CMAKE_SHARED_LIBRARY_PREFIX}swscale${CMAKE_SHARED_LIBRARY_SUFFIX}.7
+    )
+    SET(_ffmpeg_avcodec_lib_name
+        ${CMAKE_SHARED_LIBRARY_PREFIX}avcodec${CMAKE_SHARED_LIBRARY_SUFFIX}.60
+    )
+    SET(_ffmpeg_avformat_lib_name
+        ${CMAKE_SHARED_LIBRARY_PREFIX}avformat${CMAKE_SHARED_LIBRARY_SUFFIX}.60
+    )
+  ELSEIF(RV_TARGET_WINDOWS)
+    SET(_ffmpeg_avutil_lib_name
+        ${CMAKE_SHARED_LIBRARY_PREFIX}avutil-58${CMAKE_SHARED_LIBRARY_SUFFIX}
+    )
+    SET(_ffmpeg_swresample_lib_name
+        ${CMAKE_SHARED_LIBRARY_PREFIX}swresample-4${CMAKE_SHARED_LIBRARY_SUFFIX}
+    )
+    SET(_ffmpeg_swscale_lib_name
+        ${CMAKE_SHARED_LIBRARY_PREFIX}swscale-7${CMAKE_SHARED_LIBRARY_SUFFIX}
+    )
+    SET(_ffmpeg_avcodec_lib_name
+        ${CMAKE_SHARED_LIBRARY_PREFIX}avcodec-60${CMAKE_SHARED_LIBRARY_SUFFIX}
+    )
+    SET(_ffmpeg_avformat_lib_name
+        ${CMAKE_SHARED_LIBRARY_PREFIX}avformat-60${CMAKE_SHARED_LIBRARY_SUFFIX}
+    )
+  ENDIF()
+ELSE()
+  # This shouldn't happen. But it could if there are changes the acceptable versions of FFmpeg in ffmpeg.cmake and this section is not updated accordingly.
+  MESSAGE(FATAL_ERROR "The requested version of FFmpeg is not supported.")
 ENDIF()
 
 SET(_ffmpeg_libs
@@ -191,34 +247,84 @@ IF(RV_TARGET_WINDOWS)
   LIST(APPEND RV_FFMPEG_COMMON_CONFIG_OPTIONS "--toolchain=msvc")
 ENDIF()
 
+# Change the condition to TRUE to be able to debug into FFmpeg.
+IF(FALSE)
+  LIST(APPEND RV_FFMPEG_COMMON_CONFIG_OPTIONS "--disable-optimizations")
+  LIST(APPEND RV_FFMPEG_COMMON_CONFIG_OPTIONS "--enable-debug=3")
+  LIST(APPEND RV_FFMPEG_COMMON_CONFIG_OPTIONS "--disable-stripping")
+ENDIF()
+
+# Controls the EXTERNALPROJECT_ADD/BUILD_ALWAYS option
+SET(${_force_rebuild}
+    FALSE
+)
+
+IF(RV_TARGET_APPLE_ARM64)
+  SET(RV_FFMPEG_USE_VIDEOTOOLBOX_DEFAULT_VALUE
+      ON
+  )
+ELSE()
+  SET(RV_FFMPEG_USE_VIDEOTOOLBOX_DEFAULT_VALUE
+      OFF
+  )
+ENDIF()
+
+OPTION(RV_FFMPEG_USE_VIDEOTOOLBOX "FFmpeg laveraging the VideoToolbox framework" ${RV_FFMPEG_USE_VIDEOTOOLBOX_DEFAULT_VALUE})
+
 # Make a list of the Open RV's FFmpeg config options unless already customized. Note that a super project, a project consuming Open RV as a submodule, can
 # customize the FFmpeg config options via the RV_FFMPEG_CONFIG_OPTIONS cmake property.
 IF(NOT RV_FFMPEG_CONFIG_OPTIONS)
-  LIST(APPEND _disabled_decoders "--disable-decoder=bink")
-  LIST(APPEND _disabled_decoders "--disable-decoder=binkaudio_dct")
-  LIST(APPEND _disabled_decoders "--disable-decoder=binkaudio_rdft")
-  LIST(APPEND _disabled_decoders "--disable-decoder=vp9")
-  LIST(APPEND _disabled_decoders "--disable-decoder=vp9_cuvid")
-  LIST(APPEND _disabled_decoders "--disable-decoder=vp9_mediacodec")
-  LIST(APPEND _disabled_decoders "--disable-decoder=vp9_qsv")
-  LIST(APPEND _disabled_decoders "--disable-decoder=vp9_rkmpp")
-  LIST(APPEND _disabled_decoders "--disable-decoder=vp9_v4l2m2m")
-  LIST(APPEND _disabled_decoders "--disable-decoder=dnxhd")
-  LIST(APPEND _disabled_decoders "--disable-decoder=prores")
-  LIST(APPEND _disabled_decoders "--disable-decoder=qtrle")
-  LIST(APPEND _disabled_decoders "--disable-decoder=aac")
-  LIST(APPEND _disabled_decoders "--disable-decoder=aac_fixed")
-  LIST(APPEND _disabled_decoders "--disable-decoder=aac_latm")
-  LIST(APPEND _disabled_decoders "--disable-decoder=dvvideo")
+  SET(NON_FREE_DECODERS_TO_DISABLE
+      "aac"
+      "aac_at"
+      "aac_fixed"
+      "aac_latm"
+      "bink"
+      "binkaudio_dct"
+      "binkaudio_rdft"
+      "dnxhd"
+      "dvvideo"
+      "prores"
+      "qtrle"
+      "vp9"
+      "vp9_cuvid"
+      "vp9_mediacodec"
+      "vp9_qsv"
+      "vp9_rkmpp"
+      "vp9_v4l2m2m"
+  )
 
-  LIST(APPEND _disabled_encoders "--disable-encoder=dnxhd")
-  LIST(APPEND _disabled_encoders "--disable-encoder=prores")
-  LIST(APPEND _disabled_encoders "--disable-encoder=qtrle")
-  LIST(APPEND _disabled_encoders "--disable-encoder=aac")
-  LIST(APPEND _disabled_encoders "--disable-encoder=aac_mf")
-  LIST(APPEND _disabled_encoders "--disable-encoder=vp9_qsv")
-  LIST(APPEND _disabled_encoders "--disable-encoder=vp9_vaapi")
-  LIST(APPEND _disabled_encoders "--disable-encoder=dvvideo")
+  FOREACH(
+    NON_FREE_DECODER_TO_DISABLE
+    ${NON_FREE_DECODERS_TO_DISABLE}
+  )
+    IF(NOT NON_FREE_DECODER_TO_DISABLE IN_LIST RV_FFMPEG_NON_FREE_DECODERS_TO_ENABLE)
+      LIST(APPEND _disabled_decoders "--disable-decoder=${NON_FREE_DECODER_TO_DISABLE}")
+    ELSE()
+      MESSAGE(STATUS "FFmpeg decoder ${NON_FREE_DECODER_TO_DISABLE} enabled")
+    ENDIF()
+  ENDFOREACH()
+
+  SET(NON_FREE_ENCODERS_TO_DISABLE
+      "aac"
+      "aac_mf"
+      "dnxhd"
+      "dvvideo"
+      "prores"
+      "qtrle"
+      "vp9_qsv"
+      "vp9_vaapi"
+  )
+  FOREACH(
+    NON_FREE_ENCODER_TO_DISABLE
+    ${NON_FREE_ENCODERS_TO_DISABLE}
+  )
+    IF(NOT NON_FREE_ENCODER_TO_DISABLE IN_LIST RV_FFMPEG_NON_FREE_ENCODERS_TO_ENABLE)
+      LIST(APPEND _disabled_encoders "--disable-encoder=${NON_FREE_ENCODER_TO_DISABLE}")
+    ELSE()
+      MESSAGE(STATUS "FFmpeg encoder ${NON_FREE_ENCODER_TO_DISABLE} enabled")
+    ENDIF()
+  ENDFOREACH()
 
   LIST(APPEND _disabled_parsers "--disable-parser=vp9")
 
@@ -231,6 +337,16 @@ IF(NOT RV_FFMPEG_CONFIG_OPTIONS)
   SET(RV_FFMPEG_CONFIG_OPTIONS
       ${_disabled_decoders} ${_disabled_encoders} ${_disabled_filters} ${_disabled_parsers} ${_disabled_protocols}
   )
+
+  IF(NOT RV_FFMPEG_CONFIG_OPTIONS STREQUAL RV_FFMPEG_CONFIG_OPTIONS_CACHE)
+    SET(${_force_rebuild}
+        TRUE
+    )
+    SET(RV_FFMPEG_CONFIG_OPTIONS_CACHE
+        ${RV_FFMPEG_CONFIG_OPTIONS}
+        CACHE STRING "FFmpeg config options" FORCE
+    )
+  ENDIF()
 ENDIF()
 
 LIST(REMOVE_DUPLICATES RV_FFMPEG_DEPENDS)
@@ -283,7 +399,7 @@ EXTERNALPROJECT_ADD(
   BUILD_COMMAND ${_make_command} -j${_cpu_count}
   INSTALL_COMMAND ${_make_command} install
   BUILD_IN_SOURCE TRUE
-  BUILD_ALWAYS FALSE
+  BUILD_ALWAYS ${_force_rebuild}
   BUILD_BYPRODUCTS ${_build_byproducts}
   USES_TERMINAL_BUILD TRUE
 )
@@ -324,6 +440,11 @@ FOREACH(
 ENDFOREACH()
 
 TARGET_LINK_LIBRARIES(
+  ffmpeg::avutil
+  INTERFACE OpenSSL::Crypto
+)
+
+TARGET_LINK_LIBRARIES(
   ffmpeg::swresample
   INTERFACE ffmpeg::avutil
 )
@@ -360,14 +481,16 @@ IF(RV_TARGET_WINDOWS)
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${_install_dir}/bin ${RV_STAGE_LIB_DIR}
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${_install_dir}/bin ${RV_STAGE_BIN_DIR}
     COMMAND cmake -E touch ${${_target}-stage-flag}
+    BYPRODUCTS ${${_target}-stage-flag}
   )
 ELSE()
   ADD_CUSTOM_COMMAND(
+    TARGET ${_target}
+    POST_BUILD
     COMMENT "Installing ${_target}'s libs into ${RV_STAGE_LIB_DIR}"
-    OUTPUT ${${_target}-stage-flag}
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${_lib_dir} ${RV_STAGE_LIB_DIR}
     COMMAND cmake -E touch ${${_target}-stage-flag}
-    DEPENDS ${_target}
+    BYPRODUCTS ${${_target}-stage-flag}
   )
 ENDIF()
 

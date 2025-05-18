@@ -23,13 +23,14 @@ TARGET_INCLUDE_DIRECTORIES(
 )
 
 FIND_PACKAGE(
-  Qt5
+  ${RV_QT_PACKAGE_NAME}
   COMPONENTS Core
   REQUIRED
 )
 
 TARGET_LINK_LIBRARIES(
   ${_target}
+  PUBLIC MuTwkApp
   PRIVATE IOproxy
           OpenEXR::OpenEXR
           MovieFB
@@ -44,6 +45,8 @@ TARGET_LINK_LIBRARIES(
           stl_ext
           Boost::headers
           yaml_cpp
+          Qt::Core
+          PyTwkApp
 )
 
 IF(RV_TARGET_DARWIN)

@@ -812,7 +812,6 @@ Return list of node names in the given group, with type equal to the given type.
     return if propertyExists(name) then getStringProperty(name).front() else node;
 }
 
-
 \: isViewNode (bool; string name)
 {
     for_each (n; viewNodes()) if (n == name) return true;
@@ -826,34 +825,44 @@ Set the user interface name of a node. May modify the name to make it unqiue.
 
 \: setUIName (void; string node, string val)
 {
-    string newName = val;
-    bool dupcheck = true;
+    bool useNextUIName = true;
+    string newName;
 
-    while (dupcheck)
+    if (!useNextUIName)
     {
-        dupcheck = false;
+        newName = val;
+        bool dupcheck = true;
 
-        for_each (n; viewNodes())
+        while (dupcheck)
         {
-            if (uiName(n) == newName && n != node)
-            {
-                let re = regex("(.*)([0-9]+)$");
-                
-                if (re.match(newName))
-                {
-                    let m = re.smatch(newName);
-                    newName = "%s%d" % (m[1], int(m[2]) + 1);
-                }
-                else
-                {
-                    newName += "2";
-                }
+            dupcheck = false;
 
-                dupcheck = true;
-                break;
+            for_each (n; viewNodes())
+            {
+                if (uiName(n) == newName && n != node)
+                {
+                    let re = regex("(.*)([0-9]+)$");
+                
+                    if (re.match(newName))
+                    {
+                        let m = re.smatch(newName);
+                        newName = "%s%d" % (m[1], int(m[2]) + 1);
+                    }
+                    else
+                    {
+                        newName += "2";
+                    }
+
+                    dupcheck = true;
+                    break;
+                }
             }
-        }
-    };
+        };
+    }
+    else // useNextUIName = true
+    {
+        newName = nextUIName(val);
+    }
 
     let name = "%s.ui.name" % node;
     if (!propertyExists(name)) newProperty(name, StringType, 1);
@@ -980,19 +989,21 @@ Locate the input in the eval path at frame starting at node and return its ui na
 }
 
 documentation: """
-Returns an array of all annotated frames relative to the view node. The array
-is not sorted and some frames may appear more than once.
+Returns an array of all annotated frames relative to the node passed to the function.
+If there is no node, the view node is used instead. The array is not sorted and some
+frames may appear more than once.
 """;
 
-\: findAnnotatedFrames (int[];)
+\: findAnnotatedFrames (int[]; string node = nil)
 {
     string[] tempProps;
     let seqb = sequenceBoundaries();
     let testFrames = if seqb.empty() then int[](frameStart()) else seqb;
+    if (node eq nil) node = viewNode();
 
     for_each (f; testFrames)
     {
-        for_each (info; metaEvaluate(f, viewNode()))
+        for_each (info; metaEvaluate(f, node))
         {
             let {name, nodeType, eframe} = info;
 

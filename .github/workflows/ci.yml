@@ -8,9 +8,9 @@ on:
 
   pull_request: # This handles PR creation and subsequent commits.
 
-  schedule:
+  # schedule:
     # Midnight build every day
-    - cron: "0 0 * * *"
+    # - cron: "0 0 * * *"
 
   # This allows manual triggering of the workflow from the web
   workflow_dispatch:
